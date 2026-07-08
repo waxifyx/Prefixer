@@ -118,7 +118,7 @@ public final class CommandSyntax {
                 continue;
             }
             if (Character.isWhitespace(c)) {
-                if (!current.isEmpty()) {
+                if (!current.isEmpty() || tokenQuoted) {
                     tokens.add(new Token(current.toString(), tokenQuoted));
                     current.setLength(0);
                     tokenQuoted = false;
@@ -131,7 +131,7 @@ public final class CommandSyntax {
         if (quoted) {
             throw new IllegalArgumentException("usage");
         }
-        if (!current.isEmpty()) {
+        if (!current.isEmpty() || tokenQuoted) {
             tokens.add(new Token(current.toString(), tokenQuoted));
         }
         return tokens;
