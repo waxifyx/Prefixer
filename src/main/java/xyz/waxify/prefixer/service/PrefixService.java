@@ -146,10 +146,10 @@ public final class PrefixService {
             .filter(storedTag -> storedTag.type() != TagType.NONE);
 
         if (tag.isEmpty()) {
-            return Component.text(luckPermsService.currentValue(player.getUniqueId(), kind));
+            return tagRenderer.renderLuckPermsValue(player, luckPermsService.currentValue(player.getUniqueId(), kind));
         }
         if (fallbackOnly) {
-            return Component.text(tagRenderer.luckPermsFallbackOrCurrent(player.getUniqueId(), kind, luckPermsService));
+            return tagRenderer.renderLuckPermsValue(player, tagRenderer.luckPermsFallbackOrCurrent(player.getUniqueId(), kind, luckPermsService));
         }
         return tagRenderer.renderStored(player, tag.get());
     }

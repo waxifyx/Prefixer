@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.config.PrefixerConfig;
@@ -22,6 +23,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public final class TagRenderer {
+    private static final LegacyComponentSerializer LEGACY_AMPERSAND = LegacyComponentSerializer.builder()
+        .character('&')
+        .hexColors()
+        .useUnusualXRepeatedCharacterHexFormat()
+        .build();
+    private static final LegacyComponentSerializer LEGACY_SECTION = LegacyComponentSerializer.builder()
+        .character('§')
+        .hexColors()
+        .useUnusualXRepeatedCharacterHexFormat()
+        .build();
+
     private final Prefixer plugin;
     private final PrefixerConfig config;
     private final TagStorage tagStorage;
@@ -35,6 +47,23 @@ public final class TagRenderer {
 
     public Optional<StoredTag> find(UUID playerId, TagKind kind) {
         return tagStorage.find(playerId, kind);
+    }
+
+    public Component renderMiniMessage(Audience audience, String input) {
+        if (audience instanceof Pointered pointered) {
+            return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
+        }
+        return miniMessage.deserialize(input);
+    }
+
+    public Component renderLuckPermsValue(Audience audience, String input) {
+        if (input.indexOf('&') >= 0) {
+            return LEGACY_AMPERSAND.deserialize(input);
+        }
+        if (input.indexOf('§') >= 0) {
+            return LEGACY_SECTION.deserialize(input);
+        }
+        return renderMiniMessage(audience, input);
     }
 
     public Component renderStored(Audience audience, StoredTag tag) {
@@ -61,10 +90,7 @@ public final class TagRenderer {
             PrefixerConfig.TagSettings settings = tag.kind() == TagKind.PREFIX ? config.prefix() : config.suffix();
             input = settings.format().replace(settings.token(), tag.value());
         }
-        if (audience instanceof Pointered pointered) {
-            return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
-        }
-        return miniMessage.deserialize(input);
+        return renderMiniMessage(audience, input);
     }
 
     public String serializeMiniMessage(Audience audience, StoredTag tag) {
