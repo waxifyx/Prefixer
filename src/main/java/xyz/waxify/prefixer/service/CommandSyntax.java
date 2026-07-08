@@ -41,14 +41,32 @@ public final class CommandSyntax {
             if (index != tokens.size()) {
                 throw new IllegalArgumentException("usage");
             }
-            return new ParsedCommand(target, type, "", "");
+            return new ParsedCommand(target, type, "", "", null);
         }
 
         if (type == TagType.IMAGE) {
             if (tokens.size() - index < 2) {
                 throw new IllegalArgumentException("image");
             }
-            return new ParsedCommand(target, type, tokens.get(index).value(), tokens.get(index + 1).value());
+            String source = tokens.get(index).value();
+            if (!tokens.get(index + 1).quoted() && tokens.get(index + 1).value().equalsIgnoreCase("shadow")) {
+                if (tokens.size() - index < 4) {
+                    throw new IllegalArgumentException("image");
+                }
+                if (!ImageShadow.isValidSpec(tokens.get(index + 2).value())) {
+                    throw new IllegalArgumentException("invalid-shadow");
+                }
+                String fallback = join(tokens, index + 3);
+                if (fallback.isEmpty()) {
+                    throw new IllegalArgumentException("image");
+                }
+                return new ParsedCommand(target, type, source, fallback, ImageShadow.normalize(tokens.get(index + 2).value()));
+            }
+            String fallback = join(tokens, index + 1);
+            if (fallback.isEmpty()) {
+                throw new IllegalArgumentException("image");
+            }
+            return new ParsedCommand(target, type, source, fallback, null);
         }
 
         if (index >= tokens.size()) {
@@ -62,7 +80,21 @@ public final class CommandSyntax {
             }
             value.append(tokens.get(i).value());
         }
-        return new ParsedCommand(target, type, value.toString(), "");
+        return new ParsedCommand(target, type, value.toString(), "", null);
+    }
+
+    private static String join(List<Token> tokens, int start) {
+        if (start >= tokens.size()) {
+            throw new IllegalArgumentException("image");
+        }
+        StringBuilder value = new StringBuilder();
+        for (int i = start; i < tokens.size(); i++) {
+            if (i > start) {
+                value.append(' ');
+            }
+            value.append(tokens.get(i).value());
+        }
+        return value.toString();
     }
 
     private static boolean isType(String token) {

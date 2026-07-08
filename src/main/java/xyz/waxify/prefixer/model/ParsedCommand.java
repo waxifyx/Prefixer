@@ -2,5 +2,5 @@ package xyz.waxify.prefixer.model;
 
 import org.bukkit.entity.Player;
 
-public record ParsedCommand(Player target, TagType type, String value, String fallback) {
+public record ParsedCommand(Player target, TagType type, String value, String fallback, String shadowColor) {
 }

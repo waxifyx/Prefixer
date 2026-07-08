@@ -3,6 +3,7 @@ package xyz.waxify.prefixer.service;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.ShadowColor;
 import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -72,15 +73,20 @@ public final class TagRenderer {
         }
         if (tag.type() == TagType.IMAGE) {
             ImageTagPayload payload = plugin.imageService().deserialize(tag.value());
+            ShadowColor shadowColor = ImageShadow.shadowColor(payload.shadowColor());
             Component component = Component.empty();
             for (ImageTagChunk chunk : payload.chunks()) {
                 PlayerHeadObjectContents.ProfileProperty property = chunk.signature() == null || chunk.signature().isBlank()
                     ? PlayerHeadObjectContents.property("textures", chunk.value())
                     : PlayerHeadObjectContents.property("textures", chunk.value(), chunk.signature());
-                component = component.append(Component.object(ObjectContents.playerHead()
+                Component head = Component.object(ObjectContents.playerHead()
                     .profileProperties(List.of(property))
                     .hat(true)
-                    .build()));
+                    .build());
+                if (shadowColor != null) {
+                    head = head.shadowColor(shadowColor);
+                }
+                component = component.append(head);
             }
             return component;
         }

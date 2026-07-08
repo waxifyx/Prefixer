@@ -2,5 +2,5 @@ package xyz.waxify.prefixer.model;
 
 import java.util.List;
 
-public record ImageTagPayload(int width, List<ImageTagChunk> chunks) {
+public record ImageTagPayload(int width, List<ImageTagChunk> chunks, String shadowColor) {
 }

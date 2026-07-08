@@ -9,6 +9,7 @@ messages:
   image-not-yet-implemented: "<red>Image prefixes and suffixes not implemented in this build yet."
   image-processing: "<yellow>Processing image for {kind}. This may take moment."
   image-source-missing: "<red>Image type needs image source and fallback text."
+  invalid-shadow-color: "<red>Shadow must be <yellow>none</yellow>, <yellow>#RRGGBB</yellow>, or <yellow>#RRGGBBAA</yellow>."
   image-invalid-dimensions: "<red>Image must be 8 pixels high and width must be multiple of 8."
   image-has-transparency: "<red>Image transparency is not allowed."
   image-fetch-failed: "<red>Could not load image source."

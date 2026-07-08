@@ -104,6 +104,7 @@ public final class DiscordBot extends ListenerAdapter {
         TagType type = TagType.from(typeInput);
         String value = event.getOption("value", "", option -> option.getAsString());
         String fallback = event.getOption("fallback", "", option -> option.getAsString());
+        String shadow = event.getOption("shadow", (String) null, option -> option.getAsString());
 
         if (type == TagType.IMAGE) {
             var attachment = event.getOption("image", null, option -> option.getAsAttachment());
@@ -111,13 +112,13 @@ public final class DiscordBot extends ListenerAdapter {
                 try (InputStream input = attachment.getProxy().download().join()) {
                     Path temp = Files.createTempFile("prefixer-discord-", "-" + attachment.getFileName());
                     Files.copy(input, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback);
+                    plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow);
                 } catch (Exception ex) {
                     event.getHook().sendMessage("Failed to download Discord attachment.").queue();
                 }
                 return;
             }
-            plugin.imageService().setImageAsyncDiscord(event, target, kind, value, fallback);
+            plugin.imageService().setImageAsyncDiscord(event, target, kind, value, fallback, shadow);
             return;
         }
 
@@ -150,6 +151,7 @@ public final class DiscordBot extends ListenerAdapter {
             .addOption(OptionType.STRING, "type", "text, raw, image, none", false)
             .addOption(OptionType.STRING, "value", "Value or image source", false)
             .addOption(OptionType.STRING, "fallback", "Fallback text for image", false)
+            .addOption(OptionType.STRING, "shadow", "Image shadow: none, #RRGGBB, or #RRGGBBAA", false)
             .addOption(OptionType.ATTACHMENT, "image", "Discord image attachment", false);
     }
 }

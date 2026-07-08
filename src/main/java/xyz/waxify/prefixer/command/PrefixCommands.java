@@ -5,6 +5,7 @@ import dev.jorel.commandapi.CommandTree;
 import dev.jorel.commandapi.arguments.EntitySelectorArgument;
 import dev.jorel.commandapi.arguments.GreedyStringArgument;
 import dev.jorel.commandapi.arguments.LiteralArgument;
+import dev.jorel.commandapi.arguments.StringArgument;
 import dev.jorel.commandapi.arguments.TextArgument;
 import dev.jorel.commandapi.executors.CommandArguments;
 import org.bukkit.command.CommandSender;
@@ -13,6 +14,7 @@ import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.model.ParsedCommand;
 import xyz.waxify.prefixer.model.TagKind;
 import xyz.waxify.prefixer.service.CommandSyntax;
+import xyz.waxify.prefixer.service.ImageShadow;
 import xyz.waxify.prefixer.service.MessageService;
 import xyz.waxify.prefixer.service.PrefixService;
 
@@ -54,13 +56,14 @@ public final class PrefixCommands {
         try {
             ParsedCommand parsed = CommandSyntax.parse(sender, self, input);
             if (parsed.type() == xyz.waxify.prefixer.model.TagType.IMAGE) {
-                plugin.imageService().setImageAsync(sender, parsed.target(), kind, parsed.value(), parsed.fallback());
+                plugin.imageService().setImageAsync(sender, parsed.target(), kind, parsed.value(), parsed.fallback(), parsed.shadowColor());
             } else {
                 prefixService.setTag(sender, parsed.target(), kind, parsed.type(), parsed.value(), parsed.fallback());
             }
         } catch (IllegalArgumentException ex) {
             String key = switch (ex.getMessage()) {
                 case "image" -> "messages.image-source-missing";
+                case "invalid-shadow" -> "messages.invalid-shadow-color";
                 case "missing", "usage" -> "messages.invalid-command-usage";
                 default -> "messages.invalid-command-usage";
             };
@@ -114,9 +117,23 @@ public final class PrefixCommands {
         TagKind kind
     ) {
         LiteralArgument image = new LiteralArgument("image");
-        image.then(new TextArgument("source")
+        TextArgument source = new TextArgument("source");
+        source.then(new GreedyStringArgument("fallback")
+            .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args))));
+        LiteralArgument shadow = new LiteralArgument("shadow");
+        shadow.then(new StringArgument("shadow_color")
+            .executes((CommandSender sender, CommandArguments args) -> {
+                String shadowColor = (String) args.get("shadow_color");
+                if (!ImageShadow.isValidSpec(shadowColor)) {
+                    messages.send(sender, "messages.invalid-shadow-color", Map.of());
+                    return;
+                }
+                messages.send(sender, "messages.image-source-missing", Map.of());
+            })
             .then(new GreedyStringArgument("fallback")
                 .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args)))));
+        source.then(shadow);
+        image.then(source);
         return image;
     }
 

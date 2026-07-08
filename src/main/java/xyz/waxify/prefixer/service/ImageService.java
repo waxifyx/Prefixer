@@ -51,13 +51,14 @@ public final class ImageService {
         this.chunkCacheStorage = chunkCacheStorage;
     }
 
-    public CompletableFuture<Void> setImageAsync(CommandSender sender, Player target, TagKind kind, String source, String fallback) {
+    public CompletableFuture<Void> setImageAsync(CommandSender sender, Player target, TagKind kind, String source, String fallback, String shadowColor) {
         messages.send(sender, "messages.image-processing", Map.of("kind", kind.id()));
         return CompletableFuture.runAsync(() -> {
             try {
                 if (!mineSkinService.isConfigured()) {
                     throw new UserVisibleException("messages.mineskin-misconfigured");
                 }
+                String normalizedShadowColor = ImageShadow.normalize(shadowColor);
                 byte[] imageBytes = loadBytes(source);
                 BufferedImage image = ImageIO.read(new java.io.ByteArrayInputStream(imageBytes));
                 if (image == null) {
@@ -79,8 +80,14 @@ public final class ImageService {
                     chunks.add(uploaded);
                 }
 
-                ImageTagPayload payload = new ImageTagPayload(image.getWidth(), List.copyOf(chunks));
+                ImageTagPayload payload = new ImageTagPayload(image.getWidth(), List.copyOf(chunks), normalizedShadowColor);
                 plugin.getServer().getScheduler().runTask(plugin, () -> prefixService.finishImageSet(sender, target, kind, payload, fallback));
+            } catch (IllegalArgumentException ex) {
+                if ("invalid-shadow".equals(ex.getMessage())) {
+                    plugin.getServer().getScheduler().runTask(plugin, () -> messages.send(sender, "messages.invalid-shadow-color", Map.of()));
+                    return;
+                }
+                throw ex;
             } catch (UserVisibleException ex) {
                 plugin.getServer().getScheduler().runTask(plugin, () -> messages.send(sender, ex.messageKey(), Map.of()));
             } catch (Exception ex) {
@@ -90,8 +97,8 @@ public final class ImageService {
         });
     }
 
-    public void setImageAsyncDiscord(SlashCommandInteractionEvent event, Player target, TagKind kind, String source, String fallback) {
-        setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback)
+    public void setImageAsyncDiscord(SlashCommandInteractionEvent event, Player target, TagKind kind, String source, String fallback, String shadowColor) {
+        setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback, shadowColor)
             .thenRun(() -> event.getHook().sendMessage("Done.").queue());
     }
 
