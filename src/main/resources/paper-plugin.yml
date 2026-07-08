@@ -1,0 +1,20 @@
+name: Prefixer
+version: '${version}'
+
+main: xyz.waxify.prefixer.Prefixer
+bootstrapper: xyz.waxify.prefixer.PrefixerBootstrap
+loader: xyz.waxify.prefixer.PrefixerLoader
+api-version: '1.21.11'
+load: STARTUP
+
+dependencies:
+  server:
+    LuckPerms:
+      required: true
+      load: BEFORE
+    PlaceholderAPI:
+      required: false
+      load: OMIT
+    MiniPlaceholders:
+      required: false
+      load: OMIT

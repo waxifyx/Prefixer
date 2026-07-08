@@ -1,0 +1,62 @@
+# How the plugin should store data
+# valid options:
+# - JSON: Store data in JSON files
+# - SQLite: Store data in a local SQLite database
+storage-method: JSON
+
+placeholderapi:
+  enabled: true
+
+miniplaceholders:
+  enabled: true
+
+prefix:
+  # Format used for text prefixes
+  # - Supports Minimessage
+  # - Use {prefix} to insert the prefix text
+  format: "[<reset>{prefix}<reset>]"
+
+  # Default cooldown before a player can change their prefix again (s/m/h/d)
+  # - Can be overidden with prefixer.setprefix.cooldown
+  default-cooldown: 1h
+
+  # Maximum prefix length
+  max-length: 8
+
+  # Regular expression used to validate prefixes
+  allowed-regex: "^[A-Za-z0-9_ ]+$"
+
+suffix:
+  # Format used for text suffixes
+  # - Supports Minimessage
+  # - Use {suffix} to insert the suffix text
+  format: "[<reset>{suffix}<reset>]"
+
+  # Default cooldown before a player can change their suffix again (s/m/h/d)
+  # - Can be overidden with prefixer.setsuffix.cooldown
+  default-cooldown: 1h
+
+  # Maximum suffix length
+  max-length: 8
+
+  # Regular expression used to validate suffixes
+  allowed-regex: "^[A-Za-z0-9_ ]+$"
+
+discord:
+  # Whether to enable Discord integration
+  enabled: false
+
+  # Your Discord bot token
+  token: ""
+
+  whitelist:
+    # List of User IDs that are allowed to use the commands
+    users: []
+
+    # List of Role IDs that are allowed to use the commands
+    roles: []
+
+  guild-id: ""
+
+mineskin:
+  api-keys: []
