@@ -142,7 +142,9 @@ public final class PrefixService {
     }
 
     public Component component(Player player, TagKind kind, boolean fallbackOnly) {
-        Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind);
+        Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind)
+            .filter(storedTag -> storedTag.type() != TagType.NONE);
+
         if (tag.isEmpty()) {
             return Component.text(luckPermsService.currentValue(player.getUniqueId(), kind));
         }
@@ -153,7 +155,9 @@ public final class PrefixService {
     }
 
     public String stringValue(Player player, TagKind kind, boolean fallbackOnly) {
-        Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind);
+        Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind)
+            .filter(storedTag -> storedTag.type() != TagType.NONE);
+
         if (tag.isEmpty()) {
             return luckPermsService.currentValue(player.getUniqueId(), kind);
         }
