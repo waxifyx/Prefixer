@@ -32,6 +32,7 @@ public final class PrefixCommands {
 
     private static void registerReload(Prefixer plugin, PrefixService prefixService) {
         new CommandAPICommand("prefixer")
+            .withPermission("prefixer.reload")
             .withArguments(new LiteralArgument("reload"))
             .executes((CommandSender sender, CommandArguments args) -> prefixService.reload(sender))
             .register(plugin);

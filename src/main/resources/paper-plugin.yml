@@ -18,3 +18,76 @@ dependencies:
     MiniPlaceholders:
       required: false
       load: OMIT
+
+permissions:
+  prefixer.reload:
+    description: Allows reloading Prefixer.
+    default: op
+
+  prefixer.setprefix.self:
+    description: Allows setting your own prefix.
+    default: op
+  prefixer.setprefix.self.text:
+    description: Allows setting your own text prefix.
+    default: op
+  prefixer.setprefix.self.text.style:
+    description: Allows styled text prefixes with restricted MiniMessage tags.
+    default: op
+  prefixer.setprefix.self.raw:
+    description: Allows setting your own raw MiniMessage prefix.
+    default: op
+  prefixer.setprefix.self.images:
+    description: Allows setting your own image prefix.
+    default: op
+  prefixer.setprefix.others.text:
+    description: Allows setting other players text prefixes.
+    default: op
+  prefixer.setprefix.others.text.style:
+    description: Allows styled text prefixes for other players.
+    default: op
+  prefixer.setprefix.others.raw:
+    description: Allows setting other players raw MiniMessage prefixes.
+    default: op
+  prefixer.setprefix.others.images:
+    description: Allows setting other players image prefixes.
+    default: op
+  prefixer.setprefix.cooldown.bypass:
+    description: Bypasses prefix cooldowns.
+    default: op
+  prefixer.setprefix.maxlength.bypass:
+    description: Bypasses prefix max length limits.
+    default: op
+
+  prefixer.setsuffix.self:
+    description: Allows setting your own suffix.
+    default: op
+  prefixer.setsuffix.self.text:
+    description: Allows setting your own text suffix.
+    default: op
+  prefixer.setsuffix.self.text.style:
+    description: Allows styled text suffixes with restricted MiniMessage tags.
+    default: op
+  prefixer.setsuffix.self.raw:
+    description: Allows setting your own raw MiniMessage suffix.
+    default: op
+  prefixer.setsuffix.self.images:
+    description: Allows setting your own image suffix.
+    default: op
+  prefixer.setsuffix.others.text:
+    description: Allows setting other players text suffixes.
+    default: op
+  prefixer.setsuffix.others.text.style:
+    description: Allows styled text suffixes for other players.
+    default: op
+  prefixer.setsuffix.others.raw:
+    description: Allows setting other players raw MiniMessage suffixes.
+    default: op
+  prefixer.setsuffix.others.images:
+    description: Allows setting other players image suffixes.
+    default: op
+  prefixer.setsuffix.cooldown.bypass:
+    description: Bypasses suffix cooldowns.
+    default: op
+  prefixer.setsuffix.maxlength.bypass:
+    description: Bypasses suffix max length limits.
+    default: op
