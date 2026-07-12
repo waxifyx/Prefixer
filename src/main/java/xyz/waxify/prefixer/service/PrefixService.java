@@ -87,6 +87,8 @@ public final class PrefixService {
                 messages.send(sender, "messages.regex-failed", Map.of("kind", kind.id()));
                 return false;
             }
+        } else if (type == TagType.RAW) {
+            normalizedValue = tagRenderer.plainTextMiniMessage(value);
         }
 
         if ((type == TagType.TEXT || type == TagType.RAW) && normalizedValue.length() > permissionService.effectiveMaxLength(sender, kind)) {

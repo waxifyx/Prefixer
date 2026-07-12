@@ -70,6 +70,10 @@ public final class TagRenderer {
         return miniMessage.deserialize(input);
     }
 
+    private Component renderMiniMessage(String input) {
+        return miniMessage.deserialize(input);
+    }
+
     public Component renderTextStyle(Audience audience, String input) {
         if (audience instanceof Pointered pointered) {
             return textStyleMiniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
@@ -87,6 +91,10 @@ public final class TagRenderer {
 
     public String plainTextTextStyle(String input) {
         return PlainTextComponentSerializer.plainText().serialize(renderTextStyle(input));
+    }
+
+    public String plainTextMiniMessage(String input) {
+        return PlainTextComponentSerializer.plainText().serialize(renderMiniMessage(input));
     }
 
     public Component renderLuckPermsValue(Audience audience, String input) {
