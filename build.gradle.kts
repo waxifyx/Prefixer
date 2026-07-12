@@ -20,7 +20,10 @@ dependencies {
     implementation("dev.jorel:commandapi-paper-shade:11.2.0")
     implementation("com.google.code.gson:gson:2.13.1")
     implementation("org.xerial:sqlite-jdbc:3.50.3.0")
-    implementation("net.dv8tion:JDA:5.6.1")
+    implementation("net.dv8tion:JDA:5.6.1") {
+        exclude(module = "opus-java")
+        exclude(module = "tink")
+    }
 }
 
 java {
