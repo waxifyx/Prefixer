@@ -30,6 +30,17 @@ public final class PermissionService {
         return sender.hasPermission(root + ".others." + type.permissionSegment());
     }
 
+    public boolean canUseTextStyle(CommandSender sender, TagKind kind, boolean self) {
+        String root = "prefixer." + kind.permissionRoot();
+        if (self) {
+            return sender.hasPermission(root + ".self")
+                || sender.hasPermission(root + ".self.text.style")
+                || sender.hasPermission(root + ".self.raw");
+        }
+        return sender.hasPermission(root + ".others.text.style")
+            || sender.hasPermission(root + ".others.raw");
+    }
+
     public Duration effectiveCooldown(CommandSender sender, TagKind kind) {
         String root = "prefixer." + kind.permissionRoot() + ".cooldown";
         if (!(sender instanceof Permissible permissible)) {

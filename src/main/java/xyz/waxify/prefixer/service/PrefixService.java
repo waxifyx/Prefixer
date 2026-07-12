@@ -75,12 +75,21 @@ public final class PrefixService {
             }
         }
 
-        if (type == TagType.TEXT && !settings.allowedPattern().matcher(value).matches()) {
-            messages.send(sender, "messages.regex-failed", Map.of("kind", kind.id()));
-            return false;
+        String normalizedValue = value;
+        if (type == TagType.TEXT) {
+            boolean usesTextStyle = tagRenderer.usesTextStyle(value);
+            if (usesTextStyle && !permissionService.canUseTextStyle(sender, kind, self)) {
+                messages.send(sender, "messages.text-style-not-allowed", Map.of("kind", kind.id()));
+                return false;
+            }
+            normalizedValue = tagRenderer.plainTextTextStyle(value);
+            if (!settings.allowedPattern().matcher(normalizedValue).matches()) {
+                messages.send(sender, "messages.regex-failed", Map.of("kind", kind.id()));
+                return false;
+            }
         }
 
-        if ((type == TagType.TEXT || type == TagType.RAW) && value.length() > permissionService.effectiveMaxLength(sender, kind)) {
+        if ((type == TagType.TEXT || type == TagType.RAW) && normalizedValue.length() > permissionService.effectiveMaxLength(sender, kind)) {
             messages.send(sender, "messages.max-length", Map.of(
                 "kind", kind.id(),
                 "length", Integer.toString(permissionService.effectiveMaxLength(sender, kind))

@@ -4,6 +4,8 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.ShadowColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -39,6 +41,17 @@ public final class TagRenderer {
     private final PrefixerConfig config;
     private final TagStorage tagStorage;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final MiniMessage textStyleMiniMessage = MiniMessage.builder()
+        .tags(net.kyori.adventure.text.minimessage.tag.resolver.TagResolver.builder()
+            .resolver(StandardTags.color())
+            .resolver(StandardTags.decorations())
+            .resolver(StandardTags.gradient())
+            .resolver(StandardTags.transition())
+            .resolver(StandardTags.rainbow())
+            .resolver(StandardTags.shadowColor())
+            .resolver(StandardTags.reset())
+            .build())
+        .build();
 
     public TagRenderer(Prefixer plugin, PrefixerConfig config, TagStorage tagStorage) {
         this.plugin = plugin;
@@ -55,6 +68,25 @@ public final class TagRenderer {
             return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
         }
         return miniMessage.deserialize(input);
+    }
+
+    public Component renderTextStyle(Audience audience, String input) {
+        if (audience instanceof Pointered pointered) {
+            return textStyleMiniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
+        }
+        return textStyleMiniMessage.deserialize(input);
+    }
+
+    private Component renderTextStyle(String input) {
+        return textStyleMiniMessage.deserialize(input);
+    }
+
+    public boolean usesTextStyle(String input) {
+        return !PlainTextComponentSerializer.plainText().serialize(renderTextStyle(input)).equals(input);
+    }
+
+    public String plainTextTextStyle(String input) {
+        return PlainTextComponentSerializer.plainText().serialize(renderTextStyle(input));
     }
 
     public Component renderLuckPermsValue(Audience audience, String input) {
@@ -94,9 +126,17 @@ public final class TagRenderer {
         String input = tag.value();
         if (tag.type() == TagType.TEXT) {
             PrefixerConfig.TagSettings settings = tag.kind() == TagKind.PREFIX ? config.prefix() : config.suffix();
-            input = settings.format().replace(settings.token(), tag.value());
+            String format = settings.format().replace(settings.token(), "<prefixer_value>");
+            return renderMiniMessage(audience, format, Placeholder.component("prefixer_value", renderTextStyle(audience, tag.value())));
         }
         return renderMiniMessage(audience, input);
+    }
+
+    private Component renderMiniMessage(Audience audience, String input, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver resolver) {
+        if (audience instanceof Pointered pointered) {
+            return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver(), resolver);
+        }
+        return miniMessage.deserialize(input, resolver);
     }
 
     public String serializeMiniMessage(Audience audience, StoredTag tag) {
