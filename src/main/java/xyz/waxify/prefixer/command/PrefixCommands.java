@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.model.ParsedCommand;
 import xyz.waxify.prefixer.model.TagKind;
+import xyz.waxify.prefixer.model.TagType;
 import xyz.waxify.prefixer.service.CommandSyntax;
 import xyz.waxify.prefixer.service.ImageShadow;
 import xyz.waxify.prefixer.service.MessageService;
@@ -41,11 +42,11 @@ public final class PrefixCommands {
     private static void registerKind(Prefixer plugin, PrefixService prefixService, MessageService messages, String command, TagKind kind) {
         new CommandTree(command)
             .then(playerBranch(plugin, prefixService, messages, command, kind))
-            .then(typeBranch(plugin, prefixService, messages, command, kind, "text"))
-            .then(typeBranch(plugin, prefixService, messages, command, kind, "raw"))
-            .then(imageBranch(plugin, prefixService, messages, command, kind))
-            .then(noneBranch(plugin, prefixService, messages, command, kind))
-            .then(valueBranch(plugin, prefixService, messages, command, kind))
+            .then(typeBranch(plugin, prefixService, messages, command, kind, "text", TagType.TEXT, true))
+            .then(typeBranch(plugin, prefixService, messages, command, kind, "raw", TagType.RAW, true))
+            .then(imageBranch(plugin, prefixService, messages, command, kind, true))
+            .then(noneBranch(plugin, prefixService, messages, command, kind, true))
+            .then(valueBranch(plugin, prefixService, messages, command, kind, true))
             .register(plugin);
     }
 
@@ -88,12 +89,13 @@ public final class PrefixCommands {
         TagKind kind
     ) {
         EntitySelectorArgument.OnePlayer player = new EntitySelectorArgument.OnePlayer("player");
+        player.withRequirement(sender -> canAny(sender, kind, false));
         player
-            .then(typeBranch(plugin, prefixService, messages, command, kind, "text"))
-            .then(typeBranch(plugin, prefixService, messages, command, kind, "raw"))
-            .then(imageBranch(plugin, prefixService, messages, command, kind))
-            .then(noneBranch(plugin, prefixService, messages, command, kind))
-            .then(valueBranch(plugin, prefixService, messages, command, kind));
+            .then(typeBranch(plugin, prefixService, messages, command, kind, "text", TagType.TEXT, false))
+            .then(typeBranch(plugin, prefixService, messages, command, kind, "raw", TagType.RAW, false))
+            .then(imageBranch(plugin, prefixService, messages, command, kind, false))
+            .then(noneBranch(plugin, prefixService, messages, command, kind, false))
+            .then(valueBranch(plugin, prefixService, messages, command, kind, false));
         return player;
     }
 
@@ -103,11 +105,14 @@ public final class PrefixCommands {
         MessageService messages,
         String command,
         TagKind kind,
-        String literal
+        String literal,
+        TagType type,
+        boolean self
     ) {
-        LiteralArgument type = new LiteralArgument(literal);
-        type.then(valueBranch(plugin, prefixService, messages, command, kind));
-        return type;
+        LiteralArgument branch = new LiteralArgument(literal);
+        branch.withRequirement(sender -> canAccess(sender, kind, type, self));
+        branch.then(valueBranch(plugin, prefixService, messages, command, kind, self));
+        return branch;
     }
 
     private static LiteralArgument imageBranch(
@@ -115,9 +120,11 @@ public final class PrefixCommands {
         PrefixService prefixService,
         MessageService messages,
         String command,
-        TagKind kind
+        TagKind kind,
+        boolean self
     ) {
         LiteralArgument image = new LiteralArgument("image");
+        image.withRequirement(sender -> canAccess(sender, kind, TagType.IMAGE, self));
         TextArgument source = new TextArgument("source");
         source.then(new GreedyStringArgument("fallback")
             .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args))));
@@ -143,9 +150,11 @@ public final class PrefixCommands {
         PrefixService prefixService,
         MessageService messages,
         String command,
-        TagKind kind
+        TagKind kind,
+        boolean self
     ) {
         LiteralArgument none = new LiteralArgument("none");
+        none.withRequirement(sender -> canAccess(sender, kind, TagType.NONE, self));
         none.executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args)));
         return none;
     }
@@ -155,11 +164,28 @@ public final class PrefixCommands {
         PrefixService prefixService,
         MessageService messages,
         String command,
-        TagKind kind
+        TagKind kind,
+        boolean self
     ) {
         GreedyStringArgument value = new GreedyStringArgument("value");
+        value.withRequirement(sender -> canAccess(sender, kind, TagType.TEXT, self));
         value.executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args)));
         return value;
+    }
+
+    private static boolean canAny(CommandSender sender, TagKind kind, boolean self) {
+        return canAccess(sender, kind, TagType.TEXT, self)
+            || canAccess(sender, kind, TagType.RAW, self)
+            || canAccess(sender, kind, TagType.IMAGE, self)
+            || canAccess(sender, kind, TagType.NONE, self);
+    }
+
+    private static boolean canAccess(CommandSender sender, TagKind kind, TagType type, boolean self) {
+        String root = "prefixer." + kind.permissionRoot();
+        if (self) {
+            return sender instanceof Player && (sender.hasPermission(root + ".self") || sender.hasPermission(root + ".self." + type.permissionSegment()));
+        }
+        return sender.hasPermission(root + ".others." + type.permissionSegment());
     }
 
     private static String rawInput(String command, CommandArguments args) {

@@ -51,6 +51,12 @@ permissions:
   prefixer.setprefix.others.images:
     description: Allows setting other players image prefixes.
     default: op
+  prefixer.setprefix.self.none:
+    description: Allows clearing your own prefix.
+    default: op
+  prefixer.setprefix.others.none:
+    description: Allows clearing other players prefixes.
+    default: op
   prefixer.setprefix.cooldown.bypass:
     description: Bypasses prefix cooldowns.
     default: op
@@ -84,6 +90,12 @@ permissions:
     default: op
   prefixer.setsuffix.others.images:
     description: Allows setting other players image suffixes.
+    default: op
+  prefixer.setsuffix.self.none:
+    description: Allows clearing your own suffix.
+    default: op
+  prefixer.setsuffix.others.none:
+    description: Allows clearing other players suffixes.
     default: op
   prefixer.setsuffix.cooldown.bypass:
     description: Bypasses suffix cooldowns.

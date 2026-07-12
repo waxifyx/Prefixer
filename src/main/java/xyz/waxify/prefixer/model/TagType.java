@@ -23,7 +23,7 @@ public enum TagType {
             case TEXT -> "text";
             case RAW -> "raw";
             case IMAGE -> "images";
-            case NONE -> "self";
+            case NONE -> "none";
         };
     }
 }
