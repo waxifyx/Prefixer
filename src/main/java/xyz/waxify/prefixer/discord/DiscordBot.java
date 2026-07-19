@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.bukkit.Bukkit;
@@ -51,11 +52,13 @@ public final class DiscordBot extends ListenerAdapter {
         }
 
         if (!discord.guildId().isBlank() && jda.getGuildById(discord.guildId()) != null) {
-            jda.getGuildById(discord.guildId()).updateCommands().addCommands(command("setprefix"), command("setsuffix")).queue();
-            plugin.getLogger().info("Synced Prefixer Discord commands to guild " + discord.guildId());
+            jda.getGuildById(discord.guildId()).upsertCommand(command("setprefix")).complete();
+            jda.getGuildById(discord.guildId()).upsertCommand(command("setsuffix")).complete();
+            plugin.getLogger().info("Upserted Prefixer Discord commands to guild " + discord.guildId());
         } else {
-            jda.updateCommands().addCommands(command("setprefix"), command("setsuffix")).queue();
-            plugin.getLogger().info("Synced Prefixer Discord commands globally; Discord may take up to one hour to show them.");
+            jda.upsertCommand(command("setprefix")).complete();
+            jda.upsertCommand(command("setsuffix")).complete();
+            plugin.getLogger().info("Upserted Prefixer Discord commands globally; Discord may take up to one hour to show them.");
         }
     }
 
@@ -104,7 +107,8 @@ public final class DiscordBot extends ListenerAdapter {
         TagType type = TagType.from(typeInput);
         String value = event.getOption("value", "", option -> option.getAsString());
         String fallback = event.getOption("fallback", "", option -> option.getAsString());
-        String shadow = event.getOption("shadow", (String) null, option -> option.getAsString());
+        OptionMapping shadowOption = event.getOption("shadow");
+        String shadow = shadowOption == null ? null : shadowOption.getAsString();
 
         if (type == TagType.IMAGE) {
             var attachment = event.getOption("image", null, option -> option.getAsAttachment());
