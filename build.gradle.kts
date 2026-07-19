@@ -18,11 +18,15 @@ dependencies {
     compileOnly("io.github.miniplaceholders:miniplaceholders-api:3.0.1")
 
     implementation("dev.jorel:commandapi-paper-shade:11.2.0")
-    implementation("com.google.code.gson:gson:2.13.1")
+    implementation("com.google.code.gson:gson:2.13.1") {
+        exclude(group = "com.google.errorprone", module = "error_prone_annotations")
+    }
     implementation("org.xerial:sqlite-jdbc:3.50.3.0")
     implementation("net.dv8tion:JDA:5.6.1") {
         exclude(module = "opus-java")
         exclude(module = "tink")
+        exclude(group = "org.slf4j", module = "slf4j-api")
+        exclude(group = "org.jetbrains", module = "annotations")
     }
 }
 
@@ -34,6 +38,7 @@ tasks {
     shadowJar {
         archiveClassifier.set("")
         relocate("dev.jorel.commandapi", "xyz.waxify.prefixer.lib.commandapi")
+        relocate("net.dv8tion.jda", "xyz.waxify.prefixer.lib.jda")
     }
 
     build {
