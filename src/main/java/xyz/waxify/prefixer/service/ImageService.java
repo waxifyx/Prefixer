@@ -35,13 +35,16 @@ import xyz.waxify.prefixer.storage.ChunkCacheStorage;
 
 public final class ImageService {
     private static final Gson GSON = new Gson();
+    private static final String IMAGE_FETCH_USER_AGENT = "Mozilla/5.0 (compatible; Prefixer/0.0.1; +https://github.com/)";
 
     private final Prefixer plugin;
     private final MineSkinService mineSkinService;
     private final MessageService messages;
     private final PrefixService prefixService;
     private final ChunkCacheStorage chunkCacheStorage;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build();
 
     public ImageService(Prefixer plugin, MineSkinService mineSkinService, MessageService messages, PrefixService prefixService, ChunkCacheStorage chunkCacheStorage) {
         this.plugin = plugin;
@@ -112,10 +115,14 @@ public final class ImageService {
 
     private byte[] loadBytes(String source) throws IOException, InterruptedException {
         if (source.startsWith("http://") || source.startsWith("https://")) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(source)).GET().build();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(source))
+                .header("User-Agent", IMAGE_FETCH_USER_AGENT)
+                .header("Accept", "image/*,*/*;q=0.8")
+                .GET()
+                .build();
             HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() >= 400) {
-                throw new IOException("HTTP " + response.statusCode());
+                throw new IOException("Source image download failed with HTTP " + response.statusCode());
             }
             return response.body();
         }
