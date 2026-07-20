@@ -3,6 +3,10 @@ package xyz.waxify.prefixer.service;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
+import net.luckperms.api.node.Node;
+import net.luckperms.api.node.NodeType;
+import net.luckperms.api.node.metadata.NodeMetadataKey;
+import net.luckperms.api.node.types.ChatMetaNode;
 import net.luckperms.api.node.types.PrefixNode;
 import net.luckperms.api.node.types.SuffixNode;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -13,6 +17,7 @@ import java.util.UUID;
 
 public final class LuckPermsService {
     private static final int MANAGED_PRIORITY = Integer.MAX_VALUE;
+    private static final NodeMetadataKey<Boolean> MANAGED_KEY = NodeMetadataKey.of("prefixer:managed", Boolean.class);
 
     private final JavaPlugin plugin;
     private final LuckPerms luckPerms;
@@ -33,24 +38,42 @@ public final class LuckPermsService {
         User user = loadUser(playerId);
         removeManagedNode(user, kind, previous == null ? "" : previous.lastLuckPermsValue());
         if (!compatibilityValue.isBlank()) {
-            if (kind == TagKind.PREFIX) {
-                user.data().add(PrefixNode.builder(compatibilityValue, MANAGED_PRIORITY).build());
-            } else {
-                user.data().add(SuffixNode.builder(compatibilityValue, MANAGED_PRIORITY).build());
-            }
+            user.data().add(buildManagedNode(kind, compatibilityValue));
         }
         luckPerms.getUserManager().saveUser(user).join();
+        user.getCachedData().metaData().reload().join();
     }
 
     private void removeManagedNode(User user, TagKind kind, String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
+        user.data().clear(node -> isManagedNode(node, kind, value));
+    }
+
+    private Node buildManagedNode(TagKind kind, String value) {
         if (kind == TagKind.PREFIX) {
-            user.data().remove(PrefixNode.builder(value, MANAGED_PRIORITY).build());
-        } else {
-            user.data().remove(SuffixNode.builder(value, MANAGED_PRIORITY).build());
+            return PrefixNode.builder(value, MANAGED_PRIORITY)
+                .withMetadata(MANAGED_KEY, true)
+                .build();
         }
+        return SuffixNode.builder(value, MANAGED_PRIORITY)
+            .withMetadata(MANAGED_KEY, true)
+            .build();
+    }
+
+    private boolean isManagedNode(Node node, TagKind kind, String previousValue) {
+        if (!matchesKind(node, kind)) {
+            return false;
+        }
+        if (node.getMetadata(MANAGED_KEY).orElse(false)) {
+            return true;
+        }
+        if (previousValue == null || previousValue.isBlank() || !(node instanceof ChatMetaNode<?, ?> chatMetaNode)) {
+            return false;
+        }
+        return chatMetaNode.getPriority() == MANAGED_PRIORITY && chatMetaNode.getMetaValue().equals(previousValue);
+    }
+
+    private boolean matchesKind(Node node, TagKind kind) {
+        return kind == TagKind.PREFIX ? node.getType() == NodeType.PREFIX : node.getType() == NodeType.SUFFIX;
     }
 
     private User loadUser(UUID playerId) {
