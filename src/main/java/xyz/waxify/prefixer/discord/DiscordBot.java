@@ -2,12 +2,10 @@ package xyz.waxify.prefixer.discord;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -150,7 +148,6 @@ public final class DiscordBot extends ListenerAdapter {
 
     private net.dv8tion.jda.api.interactions.commands.build.SlashCommandData command(String name) {
         return Commands.slash(name, "Manage Prefixer tags")
-            .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR))
             .addOption(OptionType.STRING, "player", "Target Minecraft player name", false)
             .addOption(OptionType.STRING, "type", "text, raw, image, none", false)
             .addOption(OptionType.STRING, "value", "Value or image source", false)
