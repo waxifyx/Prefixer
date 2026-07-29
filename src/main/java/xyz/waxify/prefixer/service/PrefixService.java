@@ -132,6 +132,7 @@ public final class PrefixService {
                 lastManagedValue
             );
             tagStorage.save(finalTag);
+            plugin.completeDirectEdit(target.getUniqueId(), kind);
         } catch (Exception ex) {
             plugin.getLogger().severe("Failed to save tag: " + ex.getMessage());
             messages.send(sender, "messages.storage-error", Map.of());
@@ -155,6 +156,10 @@ public final class PrefixService {
     }
 
     public Component component(Player player, TagKind kind, boolean fallbackOnly) {
+        return plugin.withStateRead(() -> componentUnsafe(player, kind, fallbackOnly));
+    }
+
+    private Component componentUnsafe(Player player, TagKind kind, boolean fallbackOnly) {
         Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind)
             .filter(storedTag -> storedTag.type() != TagType.NONE);
 
@@ -168,6 +173,10 @@ public final class PrefixService {
     }
 
     public String stringValue(Player player, TagKind kind, boolean fallbackOnly) {
+        return plugin.withStateRead(() -> stringValueUnsafe(player, kind, fallbackOnly));
+    }
+
+    private String stringValueUnsafe(Player player, TagKind kind, boolean fallbackOnly) {
         Optional<StoredTag> tag = tagStorage.find(player.getUniqueId(), kind)
             .filter(storedTag -> storedTag.type() != TagType.NONE);
 
@@ -184,7 +193,11 @@ public final class PrefixService {
         return tagRenderer;
     }
 
-    public boolean finishImageSet(CommandSender sender, OfflinePlayer target, TagKind kind, ImageTagPayload payload, String fallback) {
+    public boolean finishImageSet(CommandSender sender, OfflinePlayer target, TagKind kind, ImageTagPayload payload, String fallback, long editVersion) {
+        if (!plugin.isCurrentImageEdit(target.getUniqueId(), kind, editVersion)) {
+            messages.send(sender, "messages.image-superseded", Map.of("kind", kind.id()));
+            return false;
+        }
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());
         Optional<StoredTag> previous = tagStorage.find(target.getUniqueId(), kind);
         StoredTag pending = new StoredTag(

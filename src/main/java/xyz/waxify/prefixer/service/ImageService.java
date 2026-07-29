@@ -37,7 +37,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.concurrent.CompletableFuture;
-import xyz.waxify.prefixer.storage.ChunkCacheStorage;
 
 public final class ImageService {
     private static final Gson GSON = new Gson();
@@ -48,23 +47,20 @@ public final class ImageService {
     private final Prefixer plugin;
     private final MineSkinService mineSkinService;
     private final MessageService messages;
-    private final PrefixService prefixService;
-    private final ChunkCacheStorage chunkCacheStorage;
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(java.time.Duration.ofSeconds(10))
         .followRedirects(HttpClient.Redirect.NEVER)
         .build();
 
-    public ImageService(Prefixer plugin, MineSkinService mineSkinService, MessageService messages, PrefixService prefixService, ChunkCacheStorage chunkCacheStorage) {
+    public ImageService(Prefixer plugin, MineSkinService mineSkinService, MessageService messages) {
         this.plugin = plugin;
         this.mineSkinService = mineSkinService;
         this.messages = messages;
-        this.prefixService = prefixService;
-        this.chunkCacheStorage = chunkCacheStorage;
     }
 
     public CompletableFuture<Void> setImageAsync(CommandSender sender, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
         messages.send(sender, "messages.image-processing", Map.of("kind", kind.id()));
+        long editVersion = plugin.beginImageEdit(target.getUniqueId(), kind);
         CompletableFuture<Void> completion = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             try {
@@ -80,19 +76,23 @@ public final class ImageService {
                 for (int x = 0; x < image.getWidth(); x += 8) {
                     BufferedImage chunk = image.getSubimage(x, 0, 8, 8);
                     String hash = hashChunk(chunk);
-                    ImageTagChunk cached = chunkCacheStorage.find(hash).orElse(null);
-                    if (cached != null) {
+                    synchronized (plugin.chunkLock(hash)) {
+                        ImageTagChunk cached = plugin.withChunkCache(cache -> cache.find(hash).orElse(null));
+                        if (cached == null) {
+                            cached = mineSkinService.uploadChunk(buildSkinPng(chunk));
+                            ImageTagChunk uploaded = cached;
+                            plugin.withChunkCache(cache -> {
+                                cache.save(hash, uploaded);
+                                return null;
+                            });
+                        }
                         chunks.add(cached);
-                        continue;
                     }
-                    ImageTagChunk uploaded = mineSkinService.uploadChunk(buildSkinPng(chunk));
-                    chunkCacheStorage.save(hash, uploaded);
-                    chunks.add(uploaded);
                 }
 
                 ImageTagPayload payload = new ImageTagPayload(image.getWidth(), List.copyOf(chunks), normalizedShadowColor);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (prefixService.finishImageSet(sender, target, kind, payload, fallback)) {
+                    if (plugin.prefixService().finishImageSet(sender, target, kind, payload, fallback, editVersion)) {
                         completion.complete(null);
                     } else {
                         completion.completeExceptionally(new IllegalStateException("Failed to save image tag"));

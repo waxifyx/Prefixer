@@ -22,16 +22,27 @@ import xyz.waxify.prefixer.storage.SqliteChunkCacheStorage;
 import xyz.waxify.prefixer.storage.SqliteTagStorage;
 import xyz.waxify.prefixer.storage.TagStorage;
 
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 public final class Prefixer extends JavaPlugin {
-    private PrefixerConfig pluginConfig;
+    private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
+    private final ConcurrentHashMap<TagKey, AtomicLong> tagVersions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> chunkLocks = new ConcurrentHashMap<>();
+    private volatile PrefixerConfig pluginConfig;
     private MessageService messages;
     private TagStorage tagStorage;
     private ChunkCacheStorage chunkCacheStorage;
     private TagRenderer tagRenderer;
-    private PrefixService prefixService;
+    private volatile PrefixService prefixService;
     private PlaceholderApiHook placeholderApiHook;
     private MiniPlaceholdersHook miniPlaceholdersHook;
-    private ImageService imageService;
+    private volatile ImageService imageService;
     private DiscordBot discordBot;
 
     @Override
@@ -53,64 +64,74 @@ public final class Prefixer extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (placeholderApiHook != null) {
-            placeholderApiHook.unregister();
-        }
-        if (tagStorage != null) {
-            tagStorage.close();
-        }
-        if (chunkCacheStorage != null) {
-            chunkCacheStorage.close();
-        }
-        if (discordBot != null) {
-            discordBot.stop();
+        stateLock.writeLock().lock();
+        try {
+            if (placeholderApiHook != null) {
+                placeholderApiHook.unregister();
+            }
+            if (tagStorage != null) {
+                tagStorage.close();
+            }
+            if (chunkCacheStorage != null) {
+                chunkCacheStorage.close();
+            }
+            if (discordBot != null) {
+                discordBot.stop();
+            }
+        } finally {
+            stateLock.writeLock().unlock();
         }
         CommandAPI.onDisable();
     }
 
     public void reloadPluginState() {
-        reloadConfig();
-        pluginConfig = PrefixerConfig.load(getConfig());
+        stateLock.writeLock().lock();
+        try {
+            reloadConfig();
+            pluginConfig = PrefixerConfig.load(getConfig());
 
-        if (messages == null) {
-            messages = new MessageService(this);
-        }
-        messages.reload();
+            if (messages == null) {
+                messages = new MessageService(this);
+            }
+            messages.reload();
 
-        if (tagStorage != null) {
-            tagStorage.close();
-        }
-        if (chunkCacheStorage != null) {
-            chunkCacheStorage.close();
-        }
-        tagStorage = switch (pluginConfig.storageMethod()) {
-            case JSON -> new JsonTagStorage(getDataFolder().toPath().resolve("data/tags.json"));
-            case SQLITE -> new SqliteTagStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
-        };
-        chunkCacheStorage = switch (pluginConfig.storageMethod()) {
-            case JSON -> new JsonChunkCacheStorage(getDataFolder().toPath().resolve("data/chunks.json"));
-            case SQLITE -> new SqliteChunkCacheStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
-        };
+            if (tagStorage != null) {
+                tagStorage.close();
+            }
+            if (chunkCacheStorage != null) {
+                chunkCacheStorage.close();
+            }
+            tagStorage = switch (pluginConfig.storageMethod()) {
+                case JSON -> new JsonTagStorage(getDataFolder().toPath().resolve("data/tags.json"));
+                case SQLITE -> new SqliteTagStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
+            };
+            chunkCacheStorage = switch (pluginConfig.storageMethod()) {
+                case JSON -> new JsonChunkCacheStorage(getDataFolder().toPath().resolve("data/chunks.json"));
+                case SQLITE -> new SqliteChunkCacheStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
+            };
 
-        tagRenderer = new TagRenderer(this, pluginConfig, tagStorage);
-        LuckPermsService luckPermsService = new LuckPermsService(this);
-        prefixService = new PrefixService(
-            this,
-            pluginConfig,
-            tagStorage,
-            tagRenderer,
-            luckPermsService,
-            new PermissionService(pluginConfig),
-            messages
-        );
-        prefixService.reconcileLuckPermsState();
-        imageService = new ImageService(this, new MineSkinService(this), messages, prefixService, chunkCacheStorage);
+            tagRenderer = new TagRenderer(this, pluginConfig, tagStorage);
+            LuckPermsService luckPermsService = new LuckPermsService(this);
+            prefixService = new PrefixService(
+                this,
+                pluginConfig,
+                tagStorage,
+                tagRenderer,
+                luckPermsService,
+                new PermissionService(pluginConfig),
+                messages
+            );
+            prefixService.reconcileLuckPermsState();
+            imageService = new ImageService(this, new MineSkinService(this), messages);
 
-        if (discordBot != null) {
-            discordBot.stop();
+            if (discordBot != null) {
+                discordBot.stop();
+            }
+            discordBot = new DiscordBot(this);
+            discordBot.start();
+        } finally {
+            stateLock.writeLock().unlock();
         }
-        discordBot = new DiscordBot(this);
-        discordBot.start();
     }
 
     private void registerHooks() {
@@ -139,5 +160,41 @@ public final class Prefixer extends JavaPlugin {
 
     public ImageService imageService() {
         return imageService;
+    }
+
+    public <T> T withChunkCache(Function<ChunkCacheStorage, T> action) {
+        return withStateRead(() -> action.apply(chunkCacheStorage));
+    }
+
+    public <T> T withStateRead(Supplier<T> action) {
+        stateLock.readLock().lock();
+        try {
+            return action.get();
+        } finally {
+            stateLock.readLock().unlock();
+        }
+    }
+
+    public Object chunkLock(String hash) {
+        return chunkLocks.computeIfAbsent(hash, ignored -> new Object());
+    }
+
+    public long beginImageEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
+        return tagVersion(playerId, kind).incrementAndGet();
+    }
+
+    public void completeDirectEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
+        tagVersion(playerId, kind).incrementAndGet();
+    }
+
+    public boolean isCurrentImageEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind, long version) {
+        return tagVersion(playerId, kind).get() == version;
+    }
+
+    private AtomicLong tagVersion(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
+        return tagVersions.computeIfAbsent(new TagKey(playerId, kind), ignored -> new AtomicLong());
+    }
+
+    private record TagKey(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
     }
 }
