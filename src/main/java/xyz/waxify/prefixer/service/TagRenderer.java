@@ -75,6 +75,9 @@ public final class TagRenderer {
     }
 
     public Component renderTextStyle(Audience audience, String input) {
+        if (input.indexOf('&') >= 0) {
+            return LEGACY_AMPERSAND.deserialize(input);
+        }
         if (audience instanceof Pointered pointered) {
             return textStyleMiniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
         }
@@ -82,6 +85,9 @@ public final class TagRenderer {
     }
 
     private Component renderTextStyle(String input) {
+        if (input.indexOf('&') >= 0) {
+            return LEGACY_AMPERSAND.deserialize(input);
+        }
         return textStyleMiniMessage.deserialize(input);
     }
 
