@@ -45,7 +45,7 @@ public final class PrefixCommands {
             .then(typeBranch(plugin, prefixService, messages, command, kind, "raw", TagType.RAW, true))
             .then(imageBranch(plugin, prefixService, messages, command, kind, true))
             .then(noneBranch(plugin, prefixService, messages, command, kind, true))
-            .then(valueBranch(plugin, prefixService, messages, command, kind, true))
+            .then(valueBranch(plugin, prefixService, messages, command, kind, TagType.TEXT, true))
             .register(plugin);
     }
 
@@ -95,7 +95,7 @@ public final class PrefixCommands {
             .then(typeBranch(plugin, prefixService, messages, command, kind, "raw", TagType.RAW, false))
             .then(imageBranch(plugin, prefixService, messages, command, kind, false))
             .then(noneBranch(plugin, prefixService, messages, command, kind, false))
-            .then(valueBranch(plugin, prefixService, messages, command, kind, false));
+            .then(valueBranch(plugin, prefixService, messages, command, kind, TagType.TEXT, false));
         return player;
     }
 
@@ -111,7 +111,7 @@ public final class PrefixCommands {
     ) {
         LiteralArgument branch = new LiteralArgument(literal);
         branch.withRequirement(sender -> canAccess(sender, kind, type, self));
-        branch.then(valueBranch(plugin, prefixService, messages, command, kind, self));
+        branch.then(valueBranch(plugin, prefixService, messages, command, kind, type, self));
         return branch;
     }
 
@@ -168,10 +168,11 @@ public final class PrefixCommands {
         MessageService messages,
         String command,
         TagKind kind,
+        TagType type,
         boolean self
     ) {
         GreedyStringArgument value = new GreedyStringArgument("value");
-        value.withRequirement(sender -> canAccess(sender, kind, TagType.TEXT, self));
+        value.withRequirement(sender -> canAccess(sender, kind, type, self));
         value.executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args)));
         return value;
     }
