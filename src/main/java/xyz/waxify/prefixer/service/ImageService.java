@@ -3,6 +3,7 @@ package xyz.waxify.prefixer.service;
 import com.google.gson.Gson;
 import net.kyori.adventure.text.Component;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import xyz.waxify.prefixer.Prefixer;
@@ -54,7 +55,7 @@ public final class ImageService {
         this.chunkCacheStorage = chunkCacheStorage;
     }
 
-    public CompletableFuture<Void> setImageAsync(CommandSender sender, Player target, TagKind kind, String source, String fallback, String shadowColor) {
+    public CompletableFuture<Void> setImageAsync(CommandSender sender, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
         messages.send(sender, "messages.image-processing", Map.of("kind", kind.id()));
         return CompletableFuture.runAsync(() -> {
             try {
@@ -100,7 +101,7 @@ public final class ImageService {
         });
     }
 
-    public void setImageAsyncDiscord(SlashCommandInteractionEvent event, Player target, TagKind kind, String source, String fallback, String shadowColor) {
+    public void setImageAsyncDiscord(SlashCommandInteractionEvent event, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
         setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback, shadowColor)
             .thenRun(() -> event.getHook().sendMessage("Done.").queue());
     }

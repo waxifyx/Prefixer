@@ -2,7 +2,6 @@ package xyz.waxify.prefixer.command;
 
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.CommandTree;
-import dev.jorel.commandapi.arguments.EntitySelectorArgument;
 import dev.jorel.commandapi.arguments.GreedyStringArgument;
 import dev.jorel.commandapi.arguments.LiteralArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
@@ -81,14 +80,14 @@ public final class PrefixCommands {
         return null;
     }
 
-    private static EntitySelectorArgument.OnePlayer playerBranch(
+    private static StringArgument playerBranch(
         Prefixer plugin,
         PrefixService prefixService,
         MessageService messages,
         String command,
         TagKind kind
     ) {
-        EntitySelectorArgument.OnePlayer player = new EntitySelectorArgument.OnePlayer("player");
+        StringArgument player = new StringArgument("player");
         player.withRequirement(sender -> canAny(sender, kind, false));
         player
             .then(typeBranch(plugin, prefixService, messages, command, kind, "text", TagType.TEXT, false))

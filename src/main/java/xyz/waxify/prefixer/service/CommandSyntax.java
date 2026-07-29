@@ -1,6 +1,7 @@
 package xyz.waxify.prefixer.service;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -20,11 +21,11 @@ public final class CommandSyntax {
             throw new IllegalArgumentException("missing");
         }
 
-        Player target = self;
+        OfflinePlayer target = self;
         int index = 0;
 
         if (!tokens.getFirst().quoted() && tokens.size() >= 1 && !isType(tokens.getFirst().value())) {
-            Player resolved = resolvePlayer(sender, tokens.getFirst().value());
+            OfflinePlayer resolved = resolvePlayer(sender, tokens.getFirst().value());
             if (resolved != null) {
                 target = resolved;
                 index = 1;
@@ -60,15 +61,15 @@ public final class CommandSyntax {
                 if (tokens.get(index + 3).quoted() || !tokens.get(index + 3).value().equalsIgnoreCase("fallback")) {
                     throw new IllegalArgumentException("image");
                 }
-                return new ParsedCommand(target, type, source, fallback, ImageShadow.normalize(tokens.get(index + 2).value()));
                 String fallback = join(tokens, index + 4);
+                return new ParsedCommand(target, type, source, fallback, ImageShadow.normalize(tokens.get(index + 2).value()));
             }
 
             if (tokens.get(nextIndex).quoted() || !tokens.get(nextIndex).value().equalsIgnoreCase("fallback")) {
                 throw new IllegalArgumentException("image");
             }
-            return new ParsedCommand(target, type, source, fallback, null);
             String fallback = join(tokens, index + 2);
+            return new ParsedCommand(target, type, source, fallback, null);
         }
 
         if (index >= tokens.size()) {
@@ -108,10 +109,14 @@ public final class CommandSyntax {
         }
     }
 
-    private static Player resolvePlayer(CommandSender sender, String token) {
+    private static OfflinePlayer resolvePlayer(CommandSender sender, String token) {
         Player exact = Bukkit.getPlayerExact(token);
         if (exact != null) {
             return exact;
+        }
+        OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(token);
+        if (cached != null) {
+            return cached;
         }
         if (token.startsWith("@")) {
             try {

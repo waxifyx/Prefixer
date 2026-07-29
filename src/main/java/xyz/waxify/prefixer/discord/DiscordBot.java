@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import xyz.waxify.prefixer.Prefixer;
@@ -92,9 +93,9 @@ public final class DiscordBot extends ListenerAdapter {
 
     private void handle(SlashCommandInteractionEvent event) {
         String playerName = event.getOption("player", (String) null, option -> option.getAsString());
-        Player target = playerName == null || playerName.isBlank()
-            ? Bukkit.getPlayerExact(event.getUser().getName())
-            : Bukkit.getPlayerExact(playerName);
+        OfflinePlayer target = playerName == null || playerName.isBlank()
+            ? Bukkit.getOfflinePlayerIfCached(event.getUser().getName())
+            : Bukkit.getOfflinePlayerIfCached(playerName);
         if (target == null) {
             event.getHook().sendMessage(plugin.messages().renderPlain("messages.discord-player-not-found", event.getUser(), java.util.Map.of("player", String.valueOf(playerName)))).queue();
             return;

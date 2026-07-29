@@ -1,6 +1,6 @@
 package xyz.waxify.prefixer.model;
 
-import org.bukkit.entity.Player;
+import org.bukkit.OfflinePlayer;
 
-public record ParsedCommand(Player target, TagType type, String value, String fallback, String shadowColor) {
+public record ParsedCommand(OfflinePlayer target, TagType type, String value, String fallback, String shadowColor) {
 }

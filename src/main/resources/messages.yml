@@ -28,6 +28,6 @@ messages:
   storage-error: "<red>Storage operation failed. Check console."
   luckperms-error: "<red>LuckPerms sync failed. Check console."
   discord-not-whitelisted: "You are not allowed to use Prefixer Discord commands."
-  discord-player-not-found: "Minecraft player `{player}` not found online."
+  discord-player-not-found: "Minecraft player `{player}` has not joined this server."
   discord-command-synced: "Synced Discord slash commands."
   discord-command-disabled: "Discord integration disabled or token missing."

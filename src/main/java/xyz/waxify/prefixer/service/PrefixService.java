@@ -2,6 +2,7 @@ package xyz.waxify.prefixer.service;
 
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import xyz.waxify.prefixer.Prefixer;
@@ -50,7 +51,7 @@ public final class PrefixService {
         messages.send(sender, "messages.reload-success", Map.of());
     }
 
-    public boolean setTag(CommandSender sender, Player target, TagKind kind, TagType type, String value, String fallback) {
+    public boolean setTag(CommandSender sender, OfflinePlayer target, TagKind kind, TagType type, String value, String fallback) {
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());
         if (!permissionService.canSet(sender, kind, type, self)) {
             messages.send(sender, "messages.no-permission", Map.of());
@@ -111,9 +112,10 @@ public final class PrefixService {
         );
 
         try {
+            Audience renderingAudience = target.getPlayer() == null ? plugin.getServer().getConsoleSender() : target.getPlayer();
             String compatibility = type == TagType.NONE
                 ? ""
-                : tagRenderer.compatibilityPlainText(target, pending);
+                : tagRenderer.compatibilityPlainText(renderingAudience, pending);
             luckPermsService.syncCompatibility(target.getUniqueId(), kind, previous.orElse(null), compatibility);
             String lastManagedValue = type == TagType.NONE
                 ? previous.map(StoredTag::lastLuckPermsValue).orElse("")
@@ -139,14 +141,14 @@ public final class PrefixService {
         if (type == TagType.NONE) {
             messages.send(sender, self ? "messages.cleared-self" : "messages.cleared-other", Map.of(
                 "kind", kind.id(),
-                "player", target.getName()
+                "player", targetName(target)
             ));
             return true;
         }
 
         messages.send(sender, self ? "messages.set-self" : "messages.set-other", Map.of(
             "kind", kind.id(),
-            "player", target.getName(),
+            "player", targetName(target),
             "value", value
         ));
         return true;
@@ -182,7 +184,7 @@ public final class PrefixService {
         return tagRenderer;
     }
 
-    public void finishImageSet(CommandSender sender, Player target, TagKind kind, ImageTagPayload payload, String fallback) {
+    public void finishImageSet(CommandSender sender, OfflinePlayer target, TagKind kind, ImageTagPayload payload, String fallback) {
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());
         Optional<StoredTag> previous = tagStorage.find(target.getUniqueId(), kind);
         StoredTag pending = new StoredTag(
@@ -211,7 +213,7 @@ public final class PrefixService {
             ));
             messages.send(sender, self ? "messages.set-self" : "messages.set-other", Map.of(
                 "kind", kind.id(),
-                "player", target.getName(),
+                "player", targetName(target),
                 "value", fallback
             ));
         } catch (Exception ex) {
@@ -220,8 +222,12 @@ public final class PrefixService {
         }
     }
 
-    private UUID actorUuid(CommandSender sender, Player target) {
+    private UUID actorUuid(CommandSender sender, OfflinePlayer target) {
         return sender instanceof Player player ? player.getUniqueId() : target.getUniqueId();
+    }
+
+    private String targetName(OfflinePlayer target) {
+        return target.getName() == null ? target.getUniqueId().toString() : target.getName();
     }
 
     public void reconcileLuckPermsState() {
