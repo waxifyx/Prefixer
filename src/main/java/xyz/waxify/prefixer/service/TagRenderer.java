@@ -31,6 +31,10 @@ public final class TagRenderer {
         .hexColors()
         .useUnusualXRepeatedCharacterHexFormat()
         .build();
+    private static final LegacyComponentSerializer LEGACY_AMPERSAND_HEX = LegacyComponentSerializer.builder()
+        .character('&')
+        .hexColors()
+        .build();
     private static final LegacyComponentSerializer LEGACY_SECTION = LegacyComponentSerializer.builder()
         .character('§')
         .hexColors()
@@ -160,11 +164,12 @@ public final class TagRenderer {
         return miniMessage.serialize(renderStored(audience, tag));
     }
 
-    public String compatibilityPlainText(Audience audience, StoredTag tag) {
+    public String compatibilityLegacy(Audience audience, StoredTag tag) {
         if (tag.type() == TagType.IMAGE) {
             return tag.fallback();
         }
-        return PlainTextComponentSerializer.plainText().serialize(renderStored(audience, tag));
+        String serialized = LEGACY_AMPERSAND_HEX.serialize(renderStored(audience, tag));
+        return serialized.isEmpty() ? "" : serialized + "&r";
     }
 
     public String luckPermsFallbackOrCurrent(UUID playerId, TagKind kind, LuckPermsService luckPermsService) {

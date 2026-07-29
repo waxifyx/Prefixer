@@ -115,7 +115,7 @@ public final class PrefixService {
             Audience renderingAudience = target.getPlayer() == null ? plugin.getServer().getConsoleSender() : target.getPlayer();
             String compatibility = type == TagType.NONE
                 ? ""
-                : tagRenderer.compatibilityPlainText(renderingAudience, pending);
+                : tagRenderer.compatibilityLegacy(renderingAudience, pending);
             luckPermsService.syncCompatibility(target.getUniqueId(), kind, previous.orElse(null), compatibility);
             String lastManagedValue = type == TagType.NONE
                 ? previous.map(StoredTag::lastLuckPermsValue).orElse("")
@@ -236,9 +236,21 @@ public final class PrefixService {
                 String compatibility = switch (tag.type()) {
                     case NONE -> "";
                     case IMAGE -> tag.fallback();
-                    default -> tag.lastLuckPermsValue();
+                    default -> tagRenderer.compatibilityLegacy(plugin.getServer().getConsoleSender(), tag);
                 };
                 luckPermsService.syncCompatibility(tag.playerId(), tag.kind(), tag, compatibility == null ? "" : compatibility);
+                if (!compatibility.equals(tag.lastLuckPermsValue())) {
+                    tagStorage.save(new StoredTag(
+                        tag.playerId(),
+                        tag.kind(),
+                        tag.type(),
+                        tag.value(),
+                        tag.fallback(),
+                        tag.updatedBy(),
+                        tag.updatedAtEpochMillis(),
+                        compatibility
+                    ));
+                }
             } catch (Exception ex) {
                 plugin.getLogger().warning("Failed to reconcile LuckPerms state for " + tag.playerId() + " " + tag.kind() + ": " + ex.getMessage());
             }

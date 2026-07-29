@@ -5,7 +5,6 @@ import net.kyori.adventure.text.Component;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.discord.DiscordCommandSender;
 import xyz.waxify.prefixer.model.ImageTagChunk;
