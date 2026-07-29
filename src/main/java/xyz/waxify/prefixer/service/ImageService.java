@@ -14,9 +14,12 @@ import xyz.waxify.prefixer.model.TagKind;
 import xyz.waxify.prefixer.model.TagType;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -25,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.security.MessageDigest;
@@ -36,6 +40,8 @@ import xyz.waxify.prefixer.storage.ChunkCacheStorage;
 public final class ImageService {
     private static final Gson GSON = new Gson();
     private static final String IMAGE_FETCH_USER_AGENT = "Mozilla/5.0 (compatible; Prefixer/0.0.1; +https://github.com/)";
+    private static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+    private static final int MAX_IMAGE_WIDTH = 256;
 
     private final Prefixer plugin;
     private final MineSkinService mineSkinService;
@@ -43,6 +49,7 @@ public final class ImageService {
     private final PrefixService prefixService;
     private final ChunkCacheStorage chunkCacheStorage;
     private final HttpClient httpClient = HttpClient.newBuilder()
+        .connectTimeout(java.time.Duration.ofSeconds(10))
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
 
@@ -64,10 +71,7 @@ public final class ImageService {
                 }
                 String normalizedShadowColor = ImageShadow.normalize(shadowColor);
                 byte[] imageBytes = loadBytes(source);
-                BufferedImage image = ImageIO.read(new java.io.ByteArrayInputStream(imageBytes));
-                if (image == null) {
-                    throw new UserVisibleException("messages.image-fetch-failed");
-                }
+                BufferedImage image = decode(imageBytes);
                 validate(image);
 
                 List<ImageTagChunk> chunks = new ArrayList<>();
@@ -130,24 +134,62 @@ public final class ImageService {
             HttpRequest request = HttpRequest.newBuilder(URI.create(source))
                 .header("User-Agent", IMAGE_FETCH_USER_AGENT)
                 .header("Accept", "image/*,*/*;q=0.8")
+                .timeout(java.time.Duration.ofSeconds(30))
                 .GET()
                 .build();
-            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() >= 400) {
-                throw new IOException("Source image download failed with HTTP " + response.statusCode());
+            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            try (InputStream body = response.body()) {
+                if (response.statusCode() >= 400) {
+                    throw new IOException("Source image download failed with HTTP " + response.statusCode());
+                }
+                if (response.headers().firstValueAsLong("Content-Length").orElse(0L) > MAX_IMAGE_BYTES) {
+                    throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
+                }
+                return readLimited(body);
             }
-            return response.body();
         }
 
         Path path = Path.of(source);
         if (!path.isAbsolute()) {
             path = Path.of(".").resolve(source).normalize();
         }
-        return Files.readAllBytes(path);
+        if (Files.size(path) > MAX_IMAGE_BYTES) {
+            throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
+        }
+        try (InputStream input = Files.newInputStream(path)) {
+            return readLimited(input);
+        }
+    }
+
+    private BufferedImage decode(byte[] imageBytes) throws IOException {
+        try (ImageInputStream input = ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(imageBytes))) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                throw new UserVisibleException("messages.image-fetch-failed");
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                if (reader.getHeight(0) != 8 || reader.getWidth(0) < 8 || reader.getWidth(0) > MAX_IMAGE_WIDTH || reader.getWidth(0) % 8 != 0) {
+                    throw new UserVisibleException("messages.image-invalid-dimensions");
+                }
+                return reader.read(0);
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    private byte[] readLimited(InputStream input) throws IOException {
+        byte[] bytes = input.readNBytes(MAX_IMAGE_BYTES + 1);
+        if (bytes.length > MAX_IMAGE_BYTES) {
+            throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
+        }
+        return bytes;
     }
 
     private void validate(BufferedImage image) {
-        if (image.getHeight() != 8 || image.getWidth() < 8 || image.getWidth() % 8 != 0) {
+        if (image.getHeight() != 8 || image.getWidth() < 8 || image.getWidth() > MAX_IMAGE_WIDTH || image.getWidth() % 8 != 0) {
             throw new UserVisibleException("messages.image-invalid-dimensions");
         }
         for (int y = 0; y < image.getHeight(); y++) {

@@ -11,7 +11,7 @@ messages:
   image-command-usage: "<red>Image usage: <yellow>image <source> fallback <text></yellow> or <yellow>image <source> shadow <color> fallback <text></yellow>."
   invalid-shadow-color: "<red>Shadow must be <yellow>none</yellow>, <yellow>#RRGGBB</yellow>, or <yellow>#RRGGBBAA</yellow>."
   text-style-not-allowed: "<red>You cannot use styled text for this {kind}."
-  image-invalid-dimensions: "<red>Image must be 8 pixels high and width must be multiple of 8."
+  image-invalid-dimensions: "<red>Image must be 8 pixels high, at most 256 pixels wide, and width must be multiple of 8."
   image-has-transparency: "<red>Image transparency is not allowed."
   image-fetch-failed: "<red>Could not load image source."
   mineskin-misconfigured: "<red>MineSkin API key not configured."
