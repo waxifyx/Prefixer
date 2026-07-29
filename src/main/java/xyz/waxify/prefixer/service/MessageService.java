@@ -47,9 +47,14 @@ public final class MessageService {
             body = body.replace("{" + entry.getKey() + "}", entry.getValue());
         }
         String joined = prefix + body;
-        if (audience instanceof Pointered pointered) {
+        if (miniPlaceholdersEnabled() && audience instanceof Pointered pointered) {
             return miniMessage.deserialize(joined, pointered, MiniPlaceholdersHook.tagResolver());
         }
         return miniMessage.deserialize(joined);
+    }
+
+    private boolean miniPlaceholdersEnabled() {
+        return plugin.getConfig().getBoolean("miniplaceholders.enabled", true)
+            && plugin.getServer().getPluginManager().getPlugin("MiniPlaceholders") != null;
     }
 }

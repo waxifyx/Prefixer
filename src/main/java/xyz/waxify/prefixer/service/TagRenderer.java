@@ -68,7 +68,7 @@ public final class TagRenderer {
     }
 
     public Component renderMiniMessage(Audience audience, String input) {
-        if (audience instanceof Pointered pointered) {
+        if (miniPlaceholdersEnabled() && audience instanceof Pointered pointered) {
             return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
         }
         return miniMessage.deserialize(input);
@@ -82,7 +82,7 @@ public final class TagRenderer {
         if (input.indexOf('&') >= 0) {
             return LEGACY_AMPERSAND.deserialize(input);
         }
-        if (audience instanceof Pointered pointered) {
+        if (miniPlaceholdersEnabled() && audience instanceof Pointered pointered) {
             return textStyleMiniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver());
         }
         return textStyleMiniMessage.deserialize(input);
@@ -151,10 +151,15 @@ public final class TagRenderer {
     }
 
     private Component renderMiniMessage(Audience audience, String input, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver resolver) {
-        if (audience instanceof Pointered pointered) {
+        if (miniPlaceholdersEnabled() && audience instanceof Pointered pointered) {
             return miniMessage.deserialize(input, pointered, MiniPlaceholdersHook.tagResolver(), resolver);
         }
         return miniMessage.deserialize(input, resolver);
+    }
+
+    private boolean miniPlaceholdersEnabled() {
+        return config.miniPlaceholdersEnabled()
+            && plugin.getServer().getPluginManager().getPlugin("MiniPlaceholders") != null;
     }
 
     public String serializeMiniMessage(Audience audience, StoredTag tag) {
