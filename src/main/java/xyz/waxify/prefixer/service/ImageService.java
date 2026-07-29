@@ -111,8 +111,8 @@ public final class ImageService {
         return completion;
     }
 
-    public void setImageAsyncDiscord(SlashCommandInteractionEvent event, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
-        setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback, shadowColor)
+    public CompletableFuture<Void> setImageAsyncDiscord(SlashCommandInteractionEvent event, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
+        return setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback, shadowColor)
             .thenRun(() -> event.getHook().sendMessage("Done.").queue())
             .exceptionally(ex -> null);
     }

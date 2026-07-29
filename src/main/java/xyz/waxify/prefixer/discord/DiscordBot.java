@@ -119,7 +119,14 @@ public final class DiscordBot extends ListenerAdapter {
                     try (InputStream downloaded = input) {
                         Path temp = Files.createTempFile("prefixer-discord-", "-" + attachment.getFileName());
                         Files.copy(downloaded, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                        plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow);
+                        plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow)
+                            .whenCompleteAsync((ignored, failure) -> {
+                                try {
+                                    Files.deleteIfExists(temp);
+                                } catch (Exception ex) {
+                                    plugin.getLogger().warning("Failed to delete Discord image temporary file: " + ex.getMessage());
+                                }
+                            });
                     } catch (Exception ex) {
                         event.getHook().sendMessage("Failed to download Discord attachment.").queue();
                     }
