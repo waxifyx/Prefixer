@@ -42,7 +42,7 @@ public final class JsonTagStorage implements TagStorage {
 
     @Override
     public synchronized void save(StoredTag tag) {
-        delete(tag.playerId(), tag.kind());
+        tags.removeIf(existing -> existing.playerId().equals(tag.playerId()) && existing.kind() == tag.kind());
         tags.add(tag);
         flush();
     }
