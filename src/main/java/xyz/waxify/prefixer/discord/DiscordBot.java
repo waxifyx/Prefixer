@@ -111,13 +111,19 @@ public final class DiscordBot extends ListenerAdapter {
         if (type == TagType.IMAGE) {
             var attachment = event.getOption("image", null, option -> option.getAsAttachment());
             if (attachment != null) {
-                try (InputStream input = attachment.getProxy().download().join()) {
-                    Path temp = Files.createTempFile("prefixer-discord-", "-" + attachment.getFileName());
-                    Files.copy(input, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow);
-                } catch (Exception ex) {
-                    event.getHook().sendMessage("Failed to download Discord attachment.").queue();
-                }
+                attachment.getProxy().download().whenComplete((input, error) -> {
+                    if (error != null) {
+                        event.getHook().sendMessage("Failed to download Discord attachment.").queue();
+                        return;
+                    }
+                    try (InputStream downloaded = input) {
+                        Path temp = Files.createTempFile("prefixer-discord-", "-" + attachment.getFileName());
+                        Files.copy(downloaded, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow);
+                    } catch (Exception ex) {
+                        event.getHook().sendMessage("Failed to download Discord attachment.").queue();
+                    }
+                });
                 return;
             }
             plugin.imageService().setImageAsyncDiscord(event, target, kind, value, fallback, shadow);
