@@ -34,7 +34,7 @@ public final class PrefixCommands {
         new CommandAPICommand("prefixer")
             .withPermission("prefixer.reload")
             .withArguments(new LiteralArgument("reload"))
-            .executes((CommandSender sender, CommandArguments args) -> prefixService.reload(sender))
+            .executes((CommandSender sender, CommandArguments args) -> plugin.prefixService().reload(sender))
             .register(plugin);
     }
 
@@ -50,6 +50,7 @@ public final class PrefixCommands {
     }
 
     private static void executeParsed(Prefixer plugin, PrefixService prefixService, MessageService messages, CommandSender sender, TagKind kind, String input) {
+        prefixService = plugin.prefixService();
         Player self = requireSelf(sender, messages);
         if (self == null) {
             return;

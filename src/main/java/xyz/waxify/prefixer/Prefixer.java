@@ -115,12 +115,12 @@ public final class Prefixer extends JavaPlugin {
 
     private void registerHooks() {
         if (pluginConfig.placeholderApiEnabled() && getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            placeholderApiHook = new PlaceholderApiHook(this, prefixService);
+            placeholderApiHook = new PlaceholderApiHook(this);
             placeholderApiHook.register();
         }
 
         if (pluginConfig.miniPlaceholdersEnabled() && getServer().getPluginManager().getPlugin("MiniPlaceholders") != null) {
-            miniPlaceholdersHook = new MiniPlaceholdersHook(this, prefixService);
+            miniPlaceholdersHook = new MiniPlaceholdersHook(this);
             miniPlaceholdersHook.register();
         }
     }

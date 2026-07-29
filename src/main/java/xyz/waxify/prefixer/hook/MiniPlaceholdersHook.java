@@ -8,23 +8,20 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
 import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.model.TagKind;
-import xyz.waxify.prefixer.service.PrefixService;
 
 public final class MiniPlaceholdersHook {
     private final Prefixer plugin;
-    private final PrefixService prefixService;
 
-    public MiniPlaceholdersHook(Prefixer plugin, PrefixService prefixService) {
+    public MiniPlaceholdersHook(Prefixer plugin) {
         this.plugin = plugin;
-        this.prefixService = prefixService;
     }
 
     public void register() {
         Expansion.builder("prefixer")
-            .audiencePlaceholder(Player.class, "prefix", (player, ctx, queue) -> Tag.selfClosingInserting(prefixService.component(player, TagKind.PREFIX, false)))
-            .audiencePlaceholder(Player.class, "suffix", (player, ctx, queue) -> Tag.selfClosingInserting(prefixService.component(player, TagKind.SUFFIX, false)))
-            .audiencePlaceholder(Player.class, "prefix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(prefixService.component(player, TagKind.PREFIX, true)))
-            .audiencePlaceholder(Player.class, "suffix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(prefixService.component(player, TagKind.SUFFIX, true)))
+            .audiencePlaceholder(Player.class, "prefix", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.PREFIX, false)))
+            .audiencePlaceholder(Player.class, "suffix", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.SUFFIX, false)))
+            .audiencePlaceholder(Player.class, "prefix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.PREFIX, true)))
+            .audiencePlaceholder(Player.class, "suffix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.SUFFIX, true)))
             .author("waxify")
             .version(plugin.getPluginMeta().getVersion())
             .build()
