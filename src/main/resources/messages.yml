@@ -9,6 +9,7 @@ messages:
   image-not-yet-implemented: "<red>Image prefixes and suffixes not implemented in this build yet."
   image-processing: "<yellow>Processing image for {kind}. This may take moment."
   image-source-missing: "<red>Image type needs image source and fallback text."
+  image-command-usage: "<red>Image usage: <yellow>image <source> fallback <text></yellow> or <yellow>image <source> shadow <color> fallback <text></yellow>."
   invalid-shadow-color: "<red>Shadow must be <yellow>none</yellow>, <yellow>#RRGGBB</yellow>, or <yellow>#RRGGBBAA</yellow>."
   text-style-not-allowed: "<red>You cannot use styled text for this {kind}."
   image-invalid-dimensions: "<red>Image must be 8 pixels high and width must be multiple of 8."

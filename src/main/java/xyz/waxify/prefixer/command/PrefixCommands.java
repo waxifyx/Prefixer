@@ -64,7 +64,7 @@ public final class PrefixCommands {
             }
         } catch (IllegalArgumentException ex) {
             String key = switch (ex.getMessage()) {
-                case "image" -> "messages.image-source-missing";
+                case "image" -> "messages.image-command-usage";
                 case "invalid-shadow" -> "messages.invalid-shadow-color";
                 case "missing", "usage" -> "messages.invalid-command-usage";
                 default -> "messages.invalid-command-usage";
@@ -126,7 +126,8 @@ public final class PrefixCommands {
         LiteralArgument image = new LiteralArgument("image");
         image.withRequirement(sender -> canAccess(sender, kind, TagType.IMAGE, self));
         TextArgument source = new TextArgument("source");
-        source.then(new GreedyStringArgument("fallback")
+        LiteralArgument fallback = new LiteralArgument("fallback");
+        fallback.then(new GreedyStringArgument("fallback_text")
             .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args))));
         LiteralArgument shadow = new LiteralArgument("shadow");
         shadow.then(new StringArgument("shadow_color")
@@ -136,10 +137,12 @@ public final class PrefixCommands {
                     messages.send(sender, "messages.invalid-shadow-color", Map.of());
                     return;
                 }
-                messages.send(sender, "messages.image-source-missing", Map.of());
+                messages.send(sender, "messages.image-command-usage", Map.of());
             })
-            .then(new GreedyStringArgument("fallback")
-                .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args)))));
+            .then(new LiteralArgument("fallback")
+                .then(new GreedyStringArgument("fallback_text")
+                    .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args))))));
+        source.then(fallback);
         source.then(shadow);
         image.then(source);
         return image;

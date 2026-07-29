@@ -45,28 +45,30 @@ public final class CommandSyntax {
         }
 
         if (type == TagType.IMAGE) {
-            if (tokens.size() - index < 2) {
+            if (tokens.size() - index < 3) {
                 throw new IllegalArgumentException("image");
             }
             String source = tokens.get(index).value();
-            if (!tokens.get(index + 1).quoted() && tokens.get(index + 1).value().equalsIgnoreCase("shadow")) {
-                if (tokens.size() - index < 4) {
+            int nextIndex = index + 1;
+            if (!tokens.get(nextIndex).quoted() && tokens.get(nextIndex).value().equalsIgnoreCase("shadow")) {
+                if (tokens.size() - index < 5) {
                     throw new IllegalArgumentException("image");
                 }
                 if (!ImageShadow.isValidSpec(tokens.get(index + 2).value())) {
                     throw new IllegalArgumentException("invalid-shadow");
                 }
-                String fallback = join(tokens, index + 3);
-                if (fallback.isEmpty()) {
+                if (tokens.get(index + 3).quoted() || !tokens.get(index + 3).value().equalsIgnoreCase("fallback")) {
                     throw new IllegalArgumentException("image");
                 }
                 return new ParsedCommand(target, type, source, fallback, ImageShadow.normalize(tokens.get(index + 2).value()));
+                String fallback = join(tokens, index + 4);
             }
-            String fallback = join(tokens, index + 1);
-            if (fallback.isEmpty()) {
+
+            if (tokens.get(nextIndex).quoted() || !tokens.get(nextIndex).value().equalsIgnoreCase("fallback")) {
                 throw new IllegalArgumentException("image");
             }
             return new ParsedCommand(target, type, source, fallback, null);
+            String fallback = join(tokens, index + 2);
         }
 
         if (index >= tokens.size()) {
