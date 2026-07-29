@@ -56,7 +56,8 @@ public final class ImageService {
 
     public CompletableFuture<Void> setImageAsync(CommandSender sender, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
         messages.send(sender, "messages.image-processing", Map.of("kind", kind.id()));
-        return CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        CompletableFuture.runAsync(() -> {
             try {
                 if (!mineSkinService.isConfigured()) {
                     throw new UserVisibleException("messages.mineskin-misconfigured");
@@ -84,25 +85,36 @@ public final class ImageService {
                 }
 
                 ImageTagPayload payload = new ImageTagPayload(image.getWidth(), List.copyOf(chunks), normalizedShadowColor);
-                plugin.getServer().getScheduler().runTask(plugin, () -> prefixService.finishImageSet(sender, target, kind, payload, fallback));
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (prefixService.finishImageSet(sender, target, kind, payload, fallback)) {
+                        completion.complete(null);
+                    } else {
+                        completion.completeExceptionally(new IllegalStateException("Failed to save image tag"));
+                    }
+                });
             } catch (IllegalArgumentException ex) {
                 if ("invalid-shadow".equals(ex.getMessage())) {
                     plugin.getServer().getScheduler().runTask(plugin, () -> messages.send(sender, "messages.invalid-shadow-color", Map.of()));
+                    completion.completeExceptionally(ex);
                     return;
                 }
-                throw ex;
+                completion.completeExceptionally(ex);
             } catch (UserVisibleException ex) {
                 plugin.getServer().getScheduler().runTask(plugin, () -> messages.send(sender, ex.messageKey(), Map.of()));
+                completion.completeExceptionally(ex);
             } catch (Exception ex) {
                 plugin.getLogger().severe("Failed to process image tag: " + ex.getMessage());
                 plugin.getServer().getScheduler().runTask(plugin, () -> messages.send(sender, "messages.storage-error", Map.of()));
+                completion.completeExceptionally(ex);
             }
         });
+        return completion;
     }
 
     public void setImageAsyncDiscord(SlashCommandInteractionEvent event, OfflinePlayer target, TagKind kind, String source, String fallback, String shadowColor) {
         setImageAsync(new DiscordCommandSender(event), target, kind, source, fallback, shadowColor)
-            .thenRun(() -> event.getHook().sendMessage("Done.").queue());
+            .thenRun(() -> event.getHook().sendMessage("Done.").queue())
+            .exceptionally(ex -> null);
     }
 
     public String serialize(ImageTagPayload payload) {

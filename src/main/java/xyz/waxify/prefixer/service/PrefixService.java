@@ -184,7 +184,7 @@ public final class PrefixService {
         return tagRenderer;
     }
 
-    public void finishImageSet(CommandSender sender, OfflinePlayer target, TagKind kind, ImageTagPayload payload, String fallback) {
+    public boolean finishImageSet(CommandSender sender, OfflinePlayer target, TagKind kind, ImageTagPayload payload, String fallback) {
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());
         Optional<StoredTag> previous = tagStorage.find(target.getUniqueId(), kind);
         StoredTag pending = new StoredTag(
@@ -216,9 +216,11 @@ public final class PrefixService {
                 "player", targetName(target),
                 "value", fallback
             ));
+            return true;
         } catch (Exception ex) {
             plugin.getLogger().severe("Failed to finalize image tag: " + ex.getMessage());
             messages.send(sender, "messages.storage-error", Map.of());
+            return false;
         }
     }
 
