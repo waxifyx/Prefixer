@@ -20,6 +20,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -50,7 +52,7 @@ public final class ImageService {
     private final ChunkCacheStorage chunkCacheStorage;
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(java.time.Duration.ofSeconds(10))
-        .followRedirects(HttpClient.Redirect.NORMAL)
+        .followRedirects(HttpClient.Redirect.NEVER)
         .build();
 
     public ImageService(Prefixer plugin, MineSkinService mineSkinService, MessageService messages, PrefixService prefixService, ChunkCacheStorage chunkCacheStorage) {
@@ -131,22 +133,7 @@ public final class ImageService {
 
     private byte[] loadBytes(String source) throws IOException, InterruptedException {
         if (source.startsWith("http://") || source.startsWith("https://")) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(source))
-                .header("User-Agent", IMAGE_FETCH_USER_AGENT)
-                .header("Accept", "image/*,*/*;q=0.8")
-                .timeout(java.time.Duration.ofSeconds(30))
-                .GET()
-                .build();
-            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream body = response.body()) {
-                if (response.statusCode() >= 400) {
-                    throw new IOException("Source image download failed with HTTP " + response.statusCode());
-                }
-                if (response.headers().firstValueAsLong("Content-Length").orElse(0L) > MAX_IMAGE_BYTES) {
-                    throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
-                }
-                return readLimited(body);
-            }
+            return loadRemoteBytes(URI.create(source));
         }
 
         Path path = Path.of(source);
@@ -186,6 +173,62 @@ public final class ImageService {
             throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
         }
         return bytes;
+    }
+
+    private byte[] loadRemoteBytes(URI uri) throws IOException, InterruptedException {
+        for (int redirects = 0; redirects <= 5; redirects++) {
+            validateRemoteUri(uri);
+            HttpRequest request = HttpRequest.newBuilder(uri)
+                .header("User-Agent", IMAGE_FETCH_USER_AGENT)
+                .header("Accept", "image/*,*/*;q=0.8")
+                .timeout(java.time.Duration.ofSeconds(30))
+                .GET()
+                .build();
+            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            try (InputStream body = response.body()) {
+                if (response.statusCode() >= 300 && response.statusCode() < 400) {
+                    String location = response.headers().firstValue("Location")
+                        .orElseThrow(() -> new IOException("Source image redirect has no location"));
+                    uri = uri.resolve(location);
+                    continue;
+                }
+                if (response.statusCode() >= 400) {
+                    throw new IOException("Source image download failed with HTTP " + response.statusCode());
+                }
+                if (response.headers().firstValueAsLong("Content-Length").orElse(0L) > MAX_IMAGE_BYTES) {
+                    throw new IOException("Source image exceeds " + MAX_IMAGE_BYTES + " bytes");
+                }
+                return readLimited(body);
+            }
+        }
+        throw new IOException("Source image exceeded redirect limit");
+    }
+
+    private void validateRemoteUri(URI uri) throws IOException {
+        if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new IOException("Source image redirect must use HTTP or HTTPS");
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IOException("Source image URL has no host");
+        }
+        for (InetAddress address : InetAddress.getAllByName(host)) {
+            if (isPrivateAddress(address)) {
+                throw new IOException("Source image URL must not target a private address");
+            }
+        }
+    }
+
+    private boolean isPrivateAddress(InetAddress address) {
+        if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
+            || address.isSiteLocalAddress() || address.isMulticastAddress()) {
+            return true;
+        }
+        if (address instanceof Inet6Address) {
+            byte first = address.getAddress()[0];
+            return (first & 0xFE) == 0xFC;
+        }
+        return false;
     }
 
     private void validate(BufferedImage image) {
