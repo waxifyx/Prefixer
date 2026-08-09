@@ -130,7 +130,7 @@ public final class PrefixCommands {
         fallback.then(new GreedyStringArgument("fallback_text")
             .executes((CommandSender sender, CommandArguments args) -> executeParsed(plugin, prefixService, messages, sender, kind, rawInput(command, args))));
         LiteralArgument shadow = new LiteralArgument("shadow");
-        shadow.then(new StringArgument("shadow_color")
+        shadow.then(new TextArgument("shadow_color")
             .executes((CommandSender sender, CommandArguments args) -> {
                 String shadowColor = (String) args.get("shadow_color");
                 if (!ImageShadow.isValidSpec(shadowColor)) {
