@@ -66,10 +66,13 @@ public final class PrefixCommands {
             String key = switch (ex.getMessage()) {
                 case "image" -> "messages.image-command-usage";
                 case "invalid-shadow" -> "messages.invalid-shadow-color";
+                case "player-not-found" -> "messages.player-not-found";
                 case "missing", "usage" -> "messages.invalid-command-usage";
                 default -> "messages.invalid-command-usage";
             };
-            messages.send(sender, key, Map.of());
+            messages.send(sender, key, "messages.player-not-found".equals(key)
+                ? Map.of("player", input.split("\\s+", 2)[0])
+                : Map.of());
         }
     }
 
@@ -94,8 +97,7 @@ public final class PrefixCommands {
             .then(typeBranch(plugin, prefixService, messages, command, kind, "text", TagType.TEXT, false))
             .then(typeBranch(plugin, prefixService, messages, command, kind, "raw", TagType.RAW, false))
             .then(imageBranch(plugin, prefixService, messages, command, kind, false))
-            .then(noneBranch(plugin, prefixService, messages, command, kind, false))
-            .then(valueBranch(plugin, prefixService, messages, command, kind, TagType.TEXT, false));
+            .then(noneBranch(plugin, prefixService, messages, command, kind, false));
         return player;
     }
 

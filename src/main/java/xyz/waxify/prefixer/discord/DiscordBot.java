@@ -9,6 +9,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
@@ -91,9 +92,9 @@ public final class DiscordBot extends ListenerAdapter {
     }
 
     private void handle(SlashCommandInteractionEvent event) {
-        String playerName = event.getOption("player", (String) null, option -> option.getAsString());
+        String playerName = event.getOption("player", (String) null, OptionMapping::getAsString);
         OfflinePlayer target = playerName == null || playerName.isBlank()
-            ? Bukkit.getOfflinePlayerIfCached(event.getUser().getName())
+            ? null
             : Bukkit.getOfflinePlayerIfCached(playerName);
         if (target == null) {
             event.getHook().sendMessage(plugin.messages().renderPlain("messages.discord-player-not-found", event.getUser(), java.util.Map.of("player", String.valueOf(playerName)))).queue();
@@ -102,7 +103,13 @@ public final class DiscordBot extends ListenerAdapter {
 
         TagKind kind = event.getName().equals("setprefix") ? TagKind.PREFIX : TagKind.SUFFIX;
         String typeInput = event.getOption("type", "text", option -> option.getAsString());
-        TagType type = TagType.from(typeInput);
+        TagType type;
+        try {
+            type = TagType.from(typeInput);
+        } catch (IllegalArgumentException ex) {
+            event.getHook().sendMessage("Invalid tag type.").queue();
+            return;
+        }
         String value = event.getOption("value", "", option -> option.getAsString());
         String fallback = event.getOption("fallback", "", option -> option.getAsString());
         OptionMapping shadowOption = event.getOption("shadow");
@@ -161,8 +168,12 @@ public final class DiscordBot extends ListenerAdapter {
 
     private net.dv8tion.jda.api.interactions.commands.build.SlashCommandData command(String name) {
         return Commands.slash(name, "Manage Prefixer tags")
-            .addOption(OptionType.STRING, "player", "Target Minecraft player name", false)
-            .addOption(OptionType.STRING, "type", "text, raw, image, none", false)
+            .addOption(OptionType.STRING, "player", "Target Minecraft player name", true)
+            .addOptions(new OptionData(OptionType.STRING, "type", "Tag type", false)
+                .addChoice("Text", "text")
+                .addChoice("Raw", "raw")
+                .addChoice("Image", "image")
+                .addChoice("None", "none"))
             .addOption(OptionType.STRING, "value", "Value or image source", false)
             .addOption(OptionType.STRING, "fallback", "Fallback text for image", false)
             .addOption(OptionType.STRING, "shadow", "Image shadow: none, #RRGGBB, or #RRGGBBAA", false)

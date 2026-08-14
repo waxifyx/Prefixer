@@ -24,12 +24,17 @@ public final class CommandSyntax {
         OfflinePlayer target = self;
         int index = 0;
 
-        if (!tokens.getFirst().quoted() && tokens.size() >= 1 && !isType(tokens.getFirst().value())) {
+        boolean explicitTarget = !tokens.getFirst().quoted()
+            && tokens.size() > 1
+            && !tokens.get(1).quoted()
+            && isType(tokens.get(1).value());
+        if (explicitTarget) {
             OfflinePlayer resolved = resolvePlayer(sender, tokens.getFirst().value());
-            if (resolved != null) {
-                target = resolved;
-                index = 1;
+            if (resolved == null) {
+                throw new IllegalArgumentException("player-not-found");
             }
+            target = resolved;
+            index = 1;
         }
 
         TagType type = TagType.TEXT;
