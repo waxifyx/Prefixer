@@ -90,11 +90,14 @@ public final class ImageService {
 
                 ImageTagPayload payload = new ImageTagPayload(image.getWidth(), List.copyOf(chunks), normalizedShadowColor);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (plugin.prefixService().finishImageSet(sender, target, kind, payload, fallback, editVersion)) {
-                        completion.complete(null);
-                    } else {
-                        completion.completeExceptionally(new IllegalStateException("Failed to save image tag"));
-                    }
+                    plugin.prefixService().finishImageSet(sender, target, kind, payload, fallback, editVersion)
+                        .whenComplete((saved, failure) -> {
+                            if (failure == null && saved) {
+                                completion.complete(null);
+                            } else {
+                                completion.completeExceptionally(new IllegalStateException("Failed to save image tag", failure));
+                            }
+                        });
                 });
             } catch (IllegalArgumentException ex) {
                 if ("invalid-shadow".equals(ex.getMessage())) {

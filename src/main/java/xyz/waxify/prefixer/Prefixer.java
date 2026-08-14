@@ -21,8 +21,12 @@ import xyz.waxify.prefixer.storage.ChunkCacheStorage;
 import xyz.waxify.prefixer.storage.SqliteChunkCacheStorage;
 import xyz.waxify.prefixer.storage.SqliteTagStorage;
 import xyz.waxify.prefixer.storage.TagStorage;
+import xyz.waxify.prefixer.model.StoredTag;
+import xyz.waxify.prefixer.model.TagKind;
 
 import java.util.UUID;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -33,6 +37,7 @@ import java.util.function.Supplier;
 public final class Prefixer extends JavaPlugin {
     private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
     private final ConcurrentHashMap<TagKey, AtomicLong> tagVersions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<TagKey, CompletableFuture<Void>> mutationTails = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Object> chunkLocks = new ConcurrentHashMap<>();
     private volatile PrefixerConfig pluginConfig;
     private MessageService messages;
@@ -180,15 +185,52 @@ public final class Prefixer extends JavaPlugin {
     }
 
     public long beginImageEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
+        return beginTagEdit(playerId, kind);
+    }
+
+    public long beginTagEdit(UUID playerId, TagKind kind) {
         return tagVersion(playerId, kind).incrementAndGet();
     }
 
-    public void completeDirectEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {
-        tagVersion(playerId, kind).incrementAndGet();
+    public boolean isCurrentImageEdit(UUID playerId, TagKind kind, long version) {
+        return tagVersion(playerId, kind).get() == version;
     }
 
-    public boolean isCurrentImageEdit(UUID playerId, xyz.waxify.prefixer.model.TagKind kind, long version) {
-        return tagVersion(playerId, kind).get() == version;
+    public CompletableFuture<Boolean> enqueueTagMutation(UUID playerId, TagKind kind, Supplier<CompletableFuture<Boolean>> mutation) {
+        TagKey key = new TagKey(playerId, kind);
+        CompletableFuture<Boolean> result;
+        CompletableFuture<Void> tail;
+        synchronized (mutationTails) {
+            CompletableFuture<Void> previous = mutationTails.getOrDefault(key, CompletableFuture.completedFuture(null));
+            result = previous.handle((ignored, failure) -> null).thenCompose(ignored -> mutation.get());
+            tail = result.handle((ignored, failure) -> null);
+            mutationTails.put(key, tail);
+        }
+        tail.whenComplete((ignored, failure) -> mutationTails.remove(key, tail));
+        return result;
+    }
+
+    public Optional<StoredTag> findCurrentTag(UUID playerId, TagKind kind) {
+        return withStateRead(() -> tagStorage.find(playerId, kind));
+    }
+
+    public void saveCurrentTag(StoredTag tag) {
+        withStateRead(() -> {
+            tagStorage.save(tag);
+            return null;
+        });
+    }
+
+    public <T> CompletableFuture<T> runOnServerThread(Supplier<T> action) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        getServer().getScheduler().runTask(this, () -> {
+            try {
+                result.complete(action.get());
+            } catch (Exception ex) {
+                result.completeExceptionally(ex);
+            }
+        });
+        return result;
     }
 
     private AtomicLong tagVersion(UUID playerId, xyz.waxify.prefixer.model.TagKind kind) {

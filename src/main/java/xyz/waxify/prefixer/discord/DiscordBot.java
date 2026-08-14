@@ -160,10 +160,7 @@ public final class DiscordBot extends ListenerAdapter {
             return;
         }
 
-        boolean ok = plugin.prefixService().setTag(new DiscordCommandSender(event), target, kind, type, value, fallback);
-        if (ok) {
-            event.getHook().sendMessage("Done.").queue();
-        }
+        plugin.prefixService().setTag(new DiscordCommandSender(event), target, kind, type, value, fallback);
     }
 
     private void copyLimited(InputStream input, OutputStream output) throws java.io.IOException {

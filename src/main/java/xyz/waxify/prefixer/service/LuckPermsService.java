@@ -14,6 +14,7 @@ import xyz.waxify.prefixer.model.StoredTag;
 import xyz.waxify.prefixer.model.TagKind;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class LuckPermsService {
     private static final int MANAGED_PRIORITY = Integer.MAX_VALUE;
@@ -28,20 +29,28 @@ public final class LuckPermsService {
     }
 
     public String currentValue(UUID playerId, TagKind kind) {
-        User user = loadUser(playerId);
+        User user = luckPerms.getUserManager().getUser(playerId);
+        if (user == null) {
+            return "";
+        }
         return kind == TagKind.PREFIX
             ? nullToEmpty(user.getCachedData().getMetaData().getPrefix())
             : nullToEmpty(user.getCachedData().getMetaData().getSuffix());
     }
 
-    public void syncCompatibility(UUID playerId, TagKind kind, StoredTag previous, String compatibilityValue) {
-        User user = loadUser(playerId);
-        removeManagedNode(user, kind, previous == null ? "" : previous.lastLuckPermsValue());
-        if (!compatibilityValue.isBlank()) {
-            user.data().add(buildManagedNode(kind, compatibilityValue));
-        }
-        luckPerms.getUserManager().saveUser(user).join();
-        user.getCachedData().metaData().reload().join();
+    public CompletableFuture<Void> syncCompatibility(UUID playerId, TagKind kind, StoredTag previous, String compatibilityValue) {
+        return luckPerms.getUserManager().loadUser(playerId).thenCompose(user -> {
+            removeManagedNode(user, kind, previous == null ? "" : previous.lastLuckPermsValue());
+            if (!compatibilityValue.isBlank()) {
+                user.data().add(buildManagedNode(kind, compatibilityValue));
+            }
+            return luckPerms.getUserManager().saveUser(user)
+                .thenCompose(ignored -> user.getCachedData().metaData().reload()
+                    .exceptionally(failure -> {
+                        plugin.getLogger().warning("LuckPerms metadata refresh failed: " + failure.getMessage());
+                        return null;
+                    }));
+        });
     }
 
     private void removeManagedNode(User user, TagKind kind, String value) {
@@ -74,10 +83,6 @@ public final class LuckPermsService {
 
     private boolean matchesKind(Node node, TagKind kind) {
         return kind == TagKind.PREFIX ? node.getType() == NodeType.PREFIX : node.getType() == NodeType.SUFFIX;
-    }
-
-    private User loadUser(UUID playerId) {
-        return luckPerms.getUserManager().loadUser(playerId).join();
     }
 
     private String nullToEmpty(String value) {
