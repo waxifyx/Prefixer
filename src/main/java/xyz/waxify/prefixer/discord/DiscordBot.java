@@ -17,8 +17,10 @@ import xyz.waxify.prefixer.Prefixer;
 import xyz.waxify.prefixer.config.PrefixerConfig;
 import xyz.waxify.prefixer.model.TagKind;
 import xyz.waxify.prefixer.model.TagType;
+import xyz.waxify.prefixer.service.ImageService;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -50,9 +52,14 @@ public final class DiscordBot extends ListenerAdapter {
             return;
         }
 
-        if (!discord.guildId().isBlank() && jda.getGuildById(discord.guildId()) != null) {
-            jda.getGuildById(discord.guildId()).upsertCommand(command("setprefix")).complete();
-            jda.getGuildById(discord.guildId()).upsertCommand(command("setsuffix")).complete();
+        if (!discord.guildId().isBlank()) {
+            var guild = jda.getGuildById(discord.guildId());
+            if (guild == null) {
+                stop();
+                throw new IllegalStateException("Configured Discord guild " + discord.guildId() + " is unavailable");
+            }
+            guild.upsertCommand(command("setprefix")).complete();
+            guild.upsertCommand(command("setsuffix")).complete();
             plugin.getLogger().info("Upserted Prefixer Discord commands to guild " + discord.guildId());
         } else {
             jda.upsertCommand(command("setprefix")).complete();
@@ -118,6 +125,10 @@ public final class DiscordBot extends ListenerAdapter {
         if (type == TagType.IMAGE) {
             var attachment = event.getOption("image", null, option -> option.getAsAttachment());
             if (attachment != null) {
+                if (attachment.getSize() > ImageService.MAX_IMAGE_BYTES) {
+                    event.getHook().sendMessage("Image attachment exceeds the 8 MiB limit.").queue();
+                    return;
+                }
                 attachment.getProxy().download().whenComplete((input, error) -> {
                     if (error != null) {
                         event.getHook().sendMessage("Failed to download Discord attachment.").queue();
@@ -125,7 +136,12 @@ public final class DiscordBot extends ListenerAdapter {
                     }
                     try (InputStream downloaded = input) {
                         Path temp = Files.createTempFile("prefixer-discord-", "-" + attachment.getFileName());
-                        Files.copy(downloaded, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        try (OutputStream output = Files.newOutputStream(temp)) {
+                            copyLimited(downloaded, output);
+                        } catch (Exception ex) {
+                            Files.deleteIfExists(temp);
+                            throw ex;
+                        }
                         plugin.imageService().setImageAsyncDiscord(event, target, kind, temp.toString(), fallback, shadow)
                             .whenCompleteAsync((ignored, failure) -> {
                                 try {
@@ -147,6 +163,18 @@ public final class DiscordBot extends ListenerAdapter {
         boolean ok = plugin.prefixService().setTag(new DiscordCommandSender(event), target, kind, type, value, fallback);
         if (ok) {
             event.getHook().sendMessage("Done.").queue();
+        }
+    }
+
+    private void copyLimited(InputStream input, OutputStream output) throws java.io.IOException {
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        for (int read; (read = input.read(buffer)) != -1; ) {
+            total += read;
+            if (total > ImageService.MAX_IMAGE_BYTES) {
+                throw new java.io.IOException("Image attachment exceeds the 8 MiB limit");
+            }
+            output.write(buffer, 0, read);
         }
     }
 

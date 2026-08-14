@@ -41,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
 public final class ImageService {
     private static final Gson GSON = new Gson();
     private static final String IMAGE_FETCH_USER_AGENT = "Mozilla/5.0 (compatible; Prefixer/0.0.1; +https://github.com/)";
-    private static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+    public static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_IMAGE_WIDTH = 256;
 
     private final Prefixer plugin;
