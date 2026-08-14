@@ -3,6 +3,7 @@ package xyz.waxify.prefixer.hook;
 import io.github.miniplaceholders.api.Expansion;
 import io.github.miniplaceholders.api.MiniPlaceholders;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
@@ -18,10 +19,10 @@ public final class MiniPlaceholdersHook {
 
     public void register() {
         Expansion.builder("prefixer")
-            .audiencePlaceholder(Player.class, "prefix", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.PREFIX, false)))
-            .audiencePlaceholder(Player.class, "suffix", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.SUFFIX, false)))
-            .audiencePlaceholder(Player.class, "prefix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.PREFIX, true)))
-            .audiencePlaceholder(Player.class, "suffix_fallback", (player, ctx, queue) -> Tag.selfClosingInserting(plugin.prefixService().component(player, TagKind.SUFFIX, true)))
+            .audiencePlaceholder(Player.class, "prefix", (player, ctx, queue) -> tag(player, TagKind.PREFIX, false))
+            .audiencePlaceholder(Player.class, "suffix", (player, ctx, queue) -> tag(player, TagKind.SUFFIX, false))
+            .audiencePlaceholder(Player.class, "prefix_fallback", (player, ctx, queue) -> tag(player, TagKind.PREFIX, true))
+            .audiencePlaceholder(Player.class, "suffix_fallback", (player, ctx, queue) -> tag(player, TagKind.SUFFIX, true))
             .author("waxify")
             .version(plugin.getPluginMeta().getVersion())
             .build()
@@ -30,5 +31,12 @@ public final class MiniPlaceholdersHook {
 
     public static TagResolver tagResolver() {
         return MiniPlaceholders.audiencePlaceholders();
+    }
+
+    private Tag tag(Player player, TagKind kind, boolean fallbackOnly) {
+        Component value = plugin.pluginConfig().miniPlaceholdersEnabled()
+            ? plugin.prefixService().component(player, kind, fallbackOnly)
+            : Component.empty();
+        return Tag.selfClosingInserting(value);
     }
 }

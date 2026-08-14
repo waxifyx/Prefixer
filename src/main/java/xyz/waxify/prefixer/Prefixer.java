@@ -64,7 +64,7 @@ public final class Prefixer extends JavaPlugin {
         reloadPluginState();
         CommandAPI.onEnable();
         PrefixCommands.register(this, prefixService, messages);
-        registerHooks();
+        reconcileHooks();
     }
 
     @Override
@@ -128,6 +128,7 @@ public final class Prefixer extends JavaPlugin {
             );
             prefixService.reconcileLuckPermsState();
             imageService = new ImageService(this, new MineSkinService(this), messages);
+            reconcileHooks();
 
             if (discordBot != null) {
                 discordBot.stop();
@@ -139,13 +140,19 @@ public final class Prefixer extends JavaPlugin {
         }
     }
 
-    private void registerHooks() {
-        if (pluginConfig.placeholderApiEnabled() && getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+    private void reconcileHooks() {
+        boolean placeholderApiAvailable = getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
+        if (pluginConfig.placeholderApiEnabled() && placeholderApiAvailable && placeholderApiHook == null) {
             placeholderApiHook = new PlaceholderApiHook(this);
             placeholderApiHook.register();
+        } else if ((!pluginConfig.placeholderApiEnabled() || !placeholderApiAvailable) && placeholderApiHook != null) {
+            placeholderApiHook.unregister();
+            placeholderApiHook = null;
         }
 
-        if (pluginConfig.miniPlaceholdersEnabled() && getServer().getPluginManager().getPlugin("MiniPlaceholders") != null) {
+        if (pluginConfig.miniPlaceholdersEnabled()
+            && getServer().getPluginManager().getPlugin("MiniPlaceholders") != null
+            && miniPlaceholdersHook == null) {
             miniPlaceholdersHook = new MiniPlaceholdersHook(this);
             miniPlaceholdersHook.register();
         }
