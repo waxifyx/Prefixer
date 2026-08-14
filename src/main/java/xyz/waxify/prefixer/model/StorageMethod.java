@@ -7,12 +7,13 @@ public enum StorageMethod {
     SQLITE;
 
     public static StorageMethod from(String value) {
-        if (value == null) {
-            return JSON;
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("storage-method must be JSON or SQLITE");
         }
-        return switch (value.trim().toUpperCase(Locale.ROOT)) {
-            case "SQLITE" -> SQLITE;
-            default -> JSON;
-        };
+        try {
+            return StorageMethod.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("storage-method must be JSON or SQLITE", ex);
+        }
     }
 }
