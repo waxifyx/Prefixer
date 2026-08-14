@@ -68,9 +68,7 @@ public final class ImageService {
                     throw new UserVisibleException("messages.mineskin-misconfigured");
                 }
                 String normalizedShadowColor = ImageShadow.normalize(shadowColor);
-                byte[] imageBytes = loadBytes(source);
-                BufferedImage image = decode(imageBytes);
-                validate(image);
+                BufferedImage image = loadAndValidate(source);
 
                 List<ImageTagChunk> chunks = new ArrayList<>();
                 for (int x = 0; x < image.getWidth(); x += 8) {
@@ -129,6 +127,19 @@ public final class ImageService {
 
     public ImageTagPayload deserialize(String payload) {
         return GSON.fromJson(payload, ImageTagPayload.class);
+    }
+
+    private BufferedImage loadAndValidate(String source) {
+        try {
+            BufferedImage image = decode(loadBytes(source));
+            validate(image);
+            return image;
+        } catch (IllegalArgumentException | IOException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw new UserVisibleException("messages.image-fetch-failed");
+        }
     }
 
     private byte[] loadBytes(String source) throws IOException, InterruptedException {
