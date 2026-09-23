@@ -100,20 +100,28 @@ public final class Prefixer extends JavaPlugin {
             }
             messages.reload();
 
+            TagStorage newTagStorage = switch (pluginConfig.storageMethod()) {
+                case JSON -> new JsonTagStorage(getDataFolder().toPath().resolve("data/tags.json"));
+                case SQLITE -> new SqliteTagStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
+            };
+            ChunkCacheStorage newChunkCacheStorage;
+            try {
+                newChunkCacheStorage = switch (pluginConfig.storageMethod()) {
+                    case JSON -> new JsonChunkCacheStorage(getDataFolder().toPath().resolve("data/chunks.json"));
+                    case SQLITE -> new SqliteChunkCacheStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
+                };
+            } catch (RuntimeException ex) {
+                newTagStorage.close();
+                throw ex;
+            }
             if (tagStorage != null) {
                 tagStorage.close();
             }
             if (chunkCacheStorage != null) {
                 chunkCacheStorage.close();
             }
-            tagStorage = switch (pluginConfig.storageMethod()) {
-                case JSON -> new JsonTagStorage(getDataFolder().toPath().resolve("data/tags.json"));
-                case SQLITE -> new SqliteTagStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
-            };
-            chunkCacheStorage = switch (pluginConfig.storageMethod()) {
-                case JSON -> new JsonChunkCacheStorage(getDataFolder().toPath().resolve("data/chunks.json"));
-                case SQLITE -> new SqliteChunkCacheStorage(getDataFolder().toPath().resolve("data/prefixer.db"));
-            };
+            tagStorage = newTagStorage;
+            chunkCacheStorage = newChunkCacheStorage;
 
             tagRenderer = new TagRenderer(this, pluginConfig, tagStorage);
             LuckPermsService luckPermsService = new LuckPermsService(this);
