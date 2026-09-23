@@ -60,22 +60,22 @@ public final class DiscordCommandSender implements CommandSender {
 
     @Override
     public boolean isPermissionSet(@NotNull String name) {
-        return true;
+        return false;
     }
 
     @Override
     public boolean isPermissionSet(@NotNull Permission perm) {
-        return true;
+        return false;
     }
 
     @Override
     public boolean hasPermission(@NotNull String name) {
-        return true;
+        return false;
     }
 
     @Override
     public boolean hasPermission(@NotNull Permission perm) {
-        return true;
+        return false;
     }
 
     @Override
@@ -113,7 +113,7 @@ public final class DiscordCommandSender implements CommandSender {
 
     @Override
     public boolean isOp() {
-        return true;
+        return false;
     }
 
     @Override
