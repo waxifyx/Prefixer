@@ -69,6 +69,7 @@ public final class Prefixer extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        final DiscordBot bot;
         stateLock.writeLock().lock();
         try {
             if (placeholderApiHook != null) {
@@ -80,16 +81,21 @@ public final class Prefixer extends JavaPlugin {
             if (chunkCacheStorage != null) {
                 chunkCacheStorage.close();
             }
-            if (discordBot != null) {
-                discordBot.stop();
-            }
+            bot = discordBot;
+            discordBot = null;
         } finally {
             stateLock.writeLock().unlock();
+        }
+        // Stopped outside the state lock so shutdown never stalls state readers.
+        if (bot != null) {
+            bot.stop();
         }
         CommandAPI.onDisable();
     }
 
     public void reloadPluginState() {
+        final DiscordBot previousBot;
+        final DiscordBot nextBot;
         stateLock.writeLock().lock();
         try {
             reloadConfig();
@@ -138,14 +144,17 @@ public final class Prefixer extends JavaPlugin {
             imageService = new ImageService(this, new MineSkinService(this), messages);
             reconcileHooks();
 
-            if (discordBot != null) {
-                discordBot.stop();
-            }
-            discordBot = new DiscordBot(this);
-            discordBot.start();
+            // Publish the replacement under the lock; lifecycle transitions run after unlock.
+            previousBot = discordBot;
+            nextBot = new DiscordBot(this);
+            discordBot = nextBot;
         } finally {
             stateLock.writeLock().unlock();
         }
+        if (previousBot != null) {
+            previousBot.stop();
+        }
+        nextBot.start();
     }
 
     private void reconcileHooks() {
