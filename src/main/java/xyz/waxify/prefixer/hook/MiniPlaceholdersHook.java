@@ -12,21 +12,40 @@ import xyz.waxify.prefixer.model.TagKind;
 
 public final class MiniPlaceholdersHook {
     private final Prefixer plugin;
+    private Expansion expansion;
 
     public MiniPlaceholdersHook(Prefixer plugin) {
         this.plugin = plugin;
     }
 
     public void register() {
-        Expansion.builder("prefixer")
+        if (expansion != null) {
+            return;
+        }
+        Expansion pending = Expansion.builder("prefixer")
             .audiencePlaceholder(Player.class, "prefix", (player, ctx, queue) -> tag(player, TagKind.PREFIX, false))
             .audiencePlaceholder(Player.class, "suffix", (player, ctx, queue) -> tag(player, TagKind.SUFFIX, false))
             .audiencePlaceholder(Player.class, "prefix_fallback", (player, ctx, queue) -> tag(player, TagKind.PREFIX, true))
             .audiencePlaceholder(Player.class, "suffix_fallback", (player, ctx, queue) -> tag(player, TagKind.SUFFIX, true))
             .author("waxify")
             .version(plugin.getPluginMeta().getVersion())
-            .build()
-            .register();
+            .build();
+        pending.register();
+        expansion = pending;
+    }
+
+    public void unregister() {
+        Expansion current = expansion;
+        if (current == null) {
+            return;
+        }
+        try {
+            if (current.registered()) {
+                current.unregister();
+            }
+        } finally {
+            expansion = null;
+        }
     }
 
     public static TagResolver tagResolver() {

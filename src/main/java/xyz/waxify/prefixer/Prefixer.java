@@ -75,6 +75,10 @@ public final class Prefixer extends JavaPlugin {
             if (placeholderApiHook != null) {
                 placeholderApiHook.unregister();
             }
+            if (miniPlaceholdersHook != null) {
+                miniPlaceholdersHook.unregister();
+                miniPlaceholdersHook = null;
+            }
             if (tagStorage != null) {
                 tagStorage.close();
             }
@@ -172,6 +176,11 @@ public final class Prefixer extends JavaPlugin {
             && miniPlaceholdersHook == null) {
             miniPlaceholdersHook = new MiniPlaceholdersHook(this);
             miniPlaceholdersHook.register();
+        } else if ((!pluginConfig.miniPlaceholdersEnabled()
+            || getServer().getPluginManager().getPlugin("MiniPlaceholders") == null)
+            && miniPlaceholdersHook != null) {
+            miniPlaceholdersHook.unregister();
+            miniPlaceholdersHook = null;
         }
     }
 
