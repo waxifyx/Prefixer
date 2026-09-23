@@ -4,7 +4,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import xyz.waxify.prefixer.config.PrefixerConfig;
-import xyz.waxify.prefixer.discord.DiscordCommandSender;
 import xyz.waxify.prefixer.model.TagKind;
 import xyz.waxify.prefixer.model.TagType;
 
@@ -23,9 +22,6 @@ public final class PermissionService {
     }
 
     public boolean canSet(CommandSender sender, TagKind kind, TagType type, boolean self) {
-        if (sender instanceof DiscordCommandSender) {
-            return true;
-        }
         String root = "prefixer." + kind.permissionRoot();
         if (self) {
             return sender.hasPermission(root + ".self")
@@ -35,9 +31,6 @@ public final class PermissionService {
     }
 
     public boolean canUseTextStyle(CommandSender sender, TagKind kind, boolean self) {
-        if (sender instanceof DiscordCommandSender) {
-            return true;
-        }
         String root = "prefixer." + kind.permissionRoot();
         if (self) {
             return sender.hasPermission(root + ".self")
@@ -49,9 +42,6 @@ public final class PermissionService {
     }
 
     public Duration effectiveCooldown(CommandSender sender, TagKind kind) {
-        if (sender instanceof DiscordCommandSender) {
-            return defaultCooldown(kind);
-        }
         String root = "prefixer." + kind.permissionRoot() + ".cooldown";
         if (!(sender instanceof Permissible permissible)) {
             return defaultCooldown(kind);
@@ -78,9 +68,6 @@ public final class PermissionService {
     }
 
     public int effectiveMaxLength(CommandSender sender, TagKind kind) {
-        if (sender instanceof DiscordCommandSender) {
-            return defaultMaxLength(kind);
-        }
         String root = "prefixer." + kind.permissionRoot() + ".maxlength";
         if (!(sender instanceof Permissible permissible)) {
             return defaultMaxLength(kind);
