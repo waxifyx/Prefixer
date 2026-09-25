@@ -26,11 +26,19 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public final class DiscordBot extends ListenerAdapter {
     private final Prefixer plugin;
-    private volatile JDA jda;
-    private volatile boolean stopped;
+    private final Object lifecycleLock = new Object();
+    private JDA jda;
+    private boolean stopped;
+    private boolean refreshScheduled;
+    private ScheduledExecutorService refreshScheduler;
+    private ScheduledFuture<?> refreshTask;
 
     public DiscordBot(Prefixer plugin) {
         this.plugin = plugin;
@@ -44,8 +52,11 @@ public final class DiscordBot extends ListenerAdapter {
         }
         // Non-blocking: login proceeds asynchronously; commands register on ReadyEvent.
         // Reset first so this instance's ReadyEvent is accepted even after a prior stop().
-        stopped = false;
+        synchronized (lifecycleLock) {
+            stopped = false;
+        }
         final JDA built;
+        final JDA stale;
         try {
             built = JDABuilder.createLight(discord.token())
                 .addEventListeners(this)
@@ -54,24 +65,44 @@ public final class DiscordBot extends ListenerAdapter {
             plugin.getLogger().warning("Failed to start Discord bot: " + ex.getMessage());
             return;
         }
-        this.jda = built;
+        synchronized (lifecycleLock) {
+            if (stopped) {
+                stale = built;
+            } else {
+                this.jda = built;
+                stale = null;
+            }
+        }
+        if (stale != null) {
+            stale.removeEventListener(this);
+            // Non-blocking shutdown: never wait for gateway teardown on the caller thread.
+            stale.shutdown();
+        }
     }
 
     @Override
     public void onReady(@NotNull ReadyEvent event) {
-        // Guard on stopped only. The event carries its own JDA instance, so comparing
-        // against the field could drop the sole ReadyEvent if it arrives before the
-        // assignment in start() becomes visible on this thread.
-        if (stopped) {
-            return;
-        }
         JDA readyJda = event.getJDA();
         PrefixerConfig.DiscordSettings discord = plugin.pluginConfig().discord();
         if (!discord.configured()) {
             return;
         }
+        synchronized (lifecycleLock) {
+            if (stopped) {
+                return;
+            }
+            registerCommands(readyJda);
+            scheduleRefreshLocked();
+        }
+    }
+
+    private void registerCommands(JDA api) {
+        PrefixerConfig.DiscordSettings discord = plugin.pluginConfig().discord();
+        if (!discord.configured()) {
+            return;
+        }
         if (!discord.guildId().isBlank()) {
-            var guild = readyJda.getGuildById(discord.guildId());
+            var guild = api.getGuildById(discord.guildId());
             if (guild == null) {
                 plugin.getLogger().warning("Configured Discord guild " + discord.guildId() + " is unavailable; skipping command registration.");
                 return;
@@ -83,12 +114,56 @@ public final class DiscordBot extends ListenerAdapter {
                 ignored -> plugin.getLogger().info("Upserted Prefixer Discord command setsuffix to guild " + discord.guildId()),
                 failure -> plugin.getLogger().warning("Failed to register Discord command setsuffix: " + failure.getMessage()));
         } else {
-            readyJda.upsertCommand(command("setprefix")).queue(
+            api.upsertCommand(command("setprefix")).queue(
                 ignored -> plugin.getLogger().info("Upserted Prefixer Discord command setprefix globally; Discord may take up to one hour to show it."),
                 failure -> plugin.getLogger().warning("Failed to register Discord command setprefix: " + failure.getMessage()));
-            readyJda.upsertCommand(command("setsuffix")).queue(
+            api.upsertCommand(command("setsuffix")).queue(
                 ignored -> plugin.getLogger().info("Upserted Prefixer Discord command setsuffix globally; Discord may take up to one hour to show it."),
                 failure -> plugin.getLogger().warning("Failed to register Discord command setsuffix: " + failure.getMessage()));
+        }
+    }
+
+    // Caller must hold lifecycleLock.
+    private void scheduleRefreshLocked() {
+        if (stopped) {
+            return;
+        }
+        if (!plugin.pluginConfig().discord().configured()) {
+            return;
+        }
+        if (refreshScheduled) {
+            return;
+        }
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "Prefixer-Discord-Commands");
+            thread.setDaemon(true);
+            return thread;
+        });
+        refreshScheduler = scheduler;
+        refreshScheduled = true;
+        try {
+            refreshTask = scheduler.scheduleAtFixedRate(() -> {
+                try {
+                    // Serialize submission with stop so a stale tick cannot enqueue after shutdown.
+                    synchronized (lifecycleLock) {
+                        if (stopped) {
+                            return;
+                        }
+                        if (jda == null) {
+                            return;
+                        }
+                        registerCommands(jda);
+                    }
+                } catch (RuntimeException ex) {
+                    plugin.getLogger().warning("Failed to refresh Discord commands: " + ex.getMessage());
+                }
+            }, 1, 1, TimeUnit.HOURS);
+        } catch (RuntimeException ex) {
+            refreshTask = null;
+            refreshScheduler = null;
+            refreshScheduled = false;
+            scheduler.shutdownNow();
+            plugin.getLogger().warning("Failed to schedule Discord command refresh: " + ex.getMessage());
         }
     }
 
@@ -97,8 +172,10 @@ public final class DiscordBot extends ListenerAdapter {
         // Asynchronous login failure surfaces here: JDABuilder.build() only throws for
         // synchronous errors, while an invalid token or rejected identify transitions the
         // JDA status to FAILED_TO_LOGIN on a gateway thread instead.
-        if (stopped) {
-            return;
+        synchronized (lifecycleLock) {
+            if (stopped) {
+                return;
+            }
         }
         if (event.getNewStatus() == JDA.Status.FAILED_TO_LOGIN) {
             plugin.getLogger().warning("Discord bot failed to log in; check the configured token and gateway status.");
@@ -106,9 +183,25 @@ public final class DiscordBot extends ListenerAdapter {
     }
 
     public void stop() {
-        stopped = true;
-        JDA current = jda;
-        jda = null;
+        final ScheduledFuture<?> task;
+        final ScheduledExecutorService scheduler;
+        final JDA current;
+        synchronized (lifecycleLock) {
+            stopped = true;
+            task = refreshTask;
+            refreshTask = null;
+            scheduler = refreshScheduler;
+            refreshScheduler = null;
+            refreshScheduled = false;
+            current = jda;
+            jda = null;
+        }
+        if (task != null) {
+            task.cancel(false);
+        }
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
         if (current != null) {
             current.removeEventListener(this);
             // Non-blocking shutdown: never wait for gateway teardown on the caller thread.
