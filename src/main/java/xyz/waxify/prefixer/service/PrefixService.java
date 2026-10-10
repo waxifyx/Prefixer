@@ -53,7 +53,7 @@ public final class PrefixService {
 
     public java.util.concurrent.CompletableFuture<Boolean> setTag(CommandSender sender, OfflinePlayer target, TagKind kind, TagType type, String value, String fallback) {
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());
-        if (!permissionService.canSet(sender, kind, type, self)) {
+        if (!PermissionService.canSet(sender, kind, type, self)) {
             messages.send(sender, "messages.no-permission", Map.of());
             return java.util.concurrent.CompletableFuture.completedFuture(false);
         }

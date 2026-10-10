@@ -21,7 +21,7 @@ public final class PermissionService {
         this.config = config;
     }
 
-    public boolean canSet(CommandSender sender, TagKind kind, TagType type, boolean self) {
+    public static boolean canSet(CommandSender sender, TagKind kind, TagType type, boolean self) {
         String root = "prefixer." + kind.permissionRoot();
         if (self) {
             return sender.hasPermission(root + ".self")

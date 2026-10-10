@@ -63,7 +63,7 @@ public final class Prefixer extends JavaPlugin {
         }
         reloadPluginState();
         CommandAPI.onEnable();
-        PrefixCommands.register(this, prefixService, messages);
+        PrefixCommands.register(this);
         reconcileHooks();
     }
 
